@@ -1,0 +1,6 @@
+# Config local — não commitar IPs/senhas
+config.json
+
+# Python
+__pycache__/
+*.pyc
