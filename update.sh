@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# update.sh — Actualiza a instalação do STB Channel Loop
+# update.sh — Update the STB Channel Loop installation
 #
-# Uso:
-#   cd ~/stb-loop   (ou onde clonaste o repo)
-#   git pull         (opcional — o update.sh também faz pull)
+# Usage:
+#   cd ~/stb-loop   (or wherever you cloned the repo)
+#   git pull         (optional — update.sh also does a pull)
 #   sudo ./update.sh
 #
 set -euo pipefail
@@ -18,52 +18,52 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 log()  { echo -e "${GREEN}[UPDATE]${NC} $*"; }
-warn() { echo -e "${YELLOW}[AVISO]${NC} $*"; }
-err()  { echo -e "${RED}[ERRO]${NC} $*"; exit 1; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+err()  { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
 if [ "$(id -u)" -ne 0 ]; then
-    err "Este script tem de ser executado como root:  sudo ./update.sh"
+    err "This script must be run as root:  sudo ./update.sh"
 fi
 
 if [ ! -d "${APP_DIR}" ]; then
-    err "${APP_DIR} não encontrado. Corre 'sudo ./setup.sh' primeiro."
+    err "${APP_DIR} not found. Run 'sudo ./setup.sh' first."
 fi
 
-log "=== STB Channel Loop — Actualização ==="
+log "=== STB Channel Loop — Update ==="
 
 # 1. Git pull
-log "1/4 A actualizar código via git …"
+log "1/4 Pulling latest code via git ..."
 if git pull 2>/dev/null; then
-    log "Código actualizado."
+    log "Code updated."
 else
-    warn "git pull falhou — a continuar com os ficheiros locais."
+    warn "git pull failed — continuing with local files."
 fi
 
-# 2. Copiar ficheiros
-log "2/4 A copiar ficheiros para ${APP_DIR} …"
+# 2. Copy files
+log "2/4 Copying files to ${APP_DIR} ..."
 cp loop.py "${APP_DIR}/"
 cp requirements.txt "${APP_DIR}/" 2>/dev/null || true
-log "Ficheiros copiados."
+log "Files copied."
 
-# 3. Instalar dependências Python
-log "3/4 A instalar dependências Python …"
+# 3. Install Python dependencies
+log "3/4 Installing Python dependencies ..."
 if [ -f "${APP_DIR}/requirements.txt" ]; then
     pip3 install -q -r "${APP_DIR}/requirements.txt" || true
 fi
-log "Dependências OK."
+log "Dependencies OK."
 
-# 4. Reiniciar serviço
-log "4/4 A reiniciar serviço …"
+# 4. Restart service
+log "4/4 Restarting service ..."
 systemctl restart "${SERVICE_NAME}"
 sleep 2
 
 if systemctl is-active --quiet "${SERVICE_NAME}"; then
-    log "Serviço reiniciado com sucesso."
+    log "Service restarted successfully."
 else
-    warn "Serviço pode não ter arrancado. Verifica: journalctl -u ${SERVICE_NAME} -f"
+    warn "Service may have failed to start. Check: journalctl -u ${SERVICE_NAME} -f"
 fi
 
 echo ""
 systemctl status "${SERVICE_NAME}" --no-pager -l 2>/dev/null || true
 echo ""
-log "Actualização concluída."
+log "Update complete."

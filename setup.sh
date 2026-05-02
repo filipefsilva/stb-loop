@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 #
-# setup.sh — Instalação completa do STB Channel Loop
+# setup.sh — Full installation of STB Channel Loop
 #
-# Uso:
+# Usage:
 #   chmod +x setup.sh
 #   sudo ./setup.sh
 #
-# O script:
-#   1. Cria o utilizador de sistema 'stb-loop'
-#   2. Instala dependências do SO (adb, python3)
-#   3. Copia o projeto para /opt/stb-loop
-#   4. Instala dependências Python
-#   5. Cria e ativa o serviço systemd
+# The script:
+#   1. Creates system user 'stb-loop'
+#   2. Installs OS dependencies (adb, python3)
+#   3. Copies the project to /opt/stb-loop
+#   4. Installs Python dependencies
+#   5. Creates and enables the systemd service
 #
 set -euo pipefail
 
@@ -21,97 +21,97 @@ SERVICE_NAME="stb-loop.service"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}"
 LOOPTIME="${LOOPTIME:-10}"
 
-# Cores
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
 log()  { echo -e "${GREEN}[SETUP]${NC} $*"; }
-warn() { echo -e "${YELLOW}[AVISO]${NC} $*"; }
-err()  { echo -e "${RED}[ERRO]${NC} $*"; exit 1; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+err()  { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
 # ---------------------------------------------------------------------------
-# Verificações iniciais
+# Initial checks
 # ---------------------------------------------------------------------------
 
 if [ "$(id -u)" -ne 0 ]; then
-    err "Este script tem de ser executado como root:  sudo ./setup.sh"
+    err "This script must be run as root:  sudo ./setup.sh"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ ! -f "${SCRIPT_DIR}/loop.py" ]; then
-    err "loop.py não encontrado em ${SCRIPT_DIR}. Corre o script a partir da pasta do projeto."
+    err "loop.py not found in ${SCRIPT_DIR}. Run the script from the project folder."
 fi
 
-log "=== STB Channel Loop — Instalação ==="
-log "Utilizador : ${APP_USER}"
-log "Destino    : ${APP_DIR}"
-log "Looptime   : ${LOOPTIME}s"
+log "=== STB Channel Loop — Installation ==="
+log "User      : ${APP_USER}"
+log "Target    : ${APP_DIR}"
+log "Looptime  : ${LOOPTIME}s"
 
 # ---------------------------------------------------------------------------
-# 1. Criar utilizador de sistema
+# 1. Create system user
 # ---------------------------------------------------------------------------
 
-log "1/5 A criar utilizador '${APP_USER}' …"
+log "1/5 Creating user '${APP_USER}' ..."
 
 if id "${APP_USER}" &>/dev/null; then
-    warn "Utilizador '${APP_USER}' já existe."
+    warn "User '${APP_USER}' already exists."
 else
     useradd --system \
         --no-create-home \
         --shell /usr/sbin/nologin \
         --comment "STB Channel Loop service user" \
         "${APP_USER}"
-    log "Utilizador '${APP_USER}' criado."
+    log "User '${APP_USER}' created."
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Instalar dependências do SO
+# 2. Install OS dependencies
 # ---------------------------------------------------------------------------
 
-log "2/5 A instalar dependências do sistema …"
+log "2/5 Installing system dependencies ..."
 
 apt update -qq
 apt install -y -qq adb python3 python3-pip
 
-log "ADB $(adb version 2>/dev/null | head -1 || echo 'instalado')"
+log "ADB $(adb version 2>/dev/null | head -1 || echo 'installed')"
 log "Python $(python3 --version)"
 
 # ---------------------------------------------------------------------------
-# 3. Copiar ficheiros do projeto
+# 3. Copy project files
 # ---------------------------------------------------------------------------
 
-log "3/5 A copiar projeto para ${APP_DIR} …"
+log "3/5 Copying project to ${APP_DIR} ..."
 
 mkdir -p "${APP_DIR}"
 cp "${SCRIPT_DIR}/loop.py" "${APP_DIR}/"
 cp "${SCRIPT_DIR}/requirements.txt" "${APP_DIR}/" 2>/dev/null || true
 
-# Copiar config.json se já existir (feito pelo wizard)
+# Copy config.json if it already exists (created by the wizard)
 if [ -f "${SCRIPT_DIR}/config.json" ]; then
     cp "${SCRIPT_DIR}/config.json" "${APP_DIR}/"
-    log "config.json copiado."
+    log "config.json copied."
 else
-    warn "config.json não encontrado. Corre 'python3 ${APP_DIR}/loop.py --stb' depois da instalação."
+    warn "config.json not found. Run 'python3 ${APP_DIR}/loop.py --stb' after installation."
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Instalar dependências Python
+# 4. Install Python dependencies
 # ---------------------------------------------------------------------------
 
-log "4/5 A instalar dependências Python …"
+log "4/5 Installing Python dependencies ..."
 
 if [ -f "${APP_DIR}/requirements.txt" ]; then
     pip3 install -q -r "${APP_DIR}/requirements.txt" || true
 fi
-log "Dependências Python OK."
+log "Python dependencies OK."
 
 # ---------------------------------------------------------------------------
-# 5. Criar e ativar serviço systemd
+# 5. Create and enable systemd service
 # ---------------------------------------------------------------------------
 
-log "5/5 A configurar serviço systemd …"
+log "5/5 Configuring systemd service ..."
 
 cat > "${SERVICE_FILE}" << SYSTEMD
 [Unit]
@@ -129,7 +129,7 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# Segurança
+# Security hardening
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
@@ -145,16 +145,16 @@ systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}"
 systemctl start "${SERVICE_NAME}"
 
-# Verificar estado
+# Check status
 sleep 2
 if systemctl is-active --quiet "${SERVICE_NAME}"; then
-    log "Serviço '${SERVICE_NAME}' ativo e a correr."
+    log "Service '${SERVICE_NAME}' is active and running."
 else
-    warn "Serviço pode não ter arrancado. Verifica: journalctl -u ${SERVICE_NAME} -f"
+    warn "Service may have failed to start. Check: journalctl -u ${SERVICE_NAME} -f"
 fi
 
 # ---------------------------------------------------------------------------
-# Permissões finais
+# Final permissions
 # ---------------------------------------------------------------------------
 
 chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}"
@@ -162,26 +162,26 @@ chmod 750 "${APP_DIR}"
 chmod 640 "${APP_DIR}/config.json" 2>/dev/null || true
 chmod 755 "${APP_DIR}/loop.py"
 
-# Dar permissão ao user stb-loop para usar ADB
+# Grant the stb-loop user permission to use ADB
 usermod -a -G plugdev "${APP_USER}" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
-# Resumo
+# Summary
 # ---------------------------------------------------------------------------
 
 echo ""
 log "============================================"
-log " Instalação concluída!"
+log " Installation complete!"
 log "============================================"
 echo ""
-echo "  Comandos úteis:"
+echo "  Useful commands:"
 echo "  ─────────────────────────────────────────"
-echo "  Configurar STB:   python3 ${APP_DIR}/loop.py --stb"
-echo "  Estado serviço:   sudo systemctl status ${SERVICE_NAME}"
-echo "  Logs em direto:   journalctl -u ${SERVICE_NAME} -f"
-echo "  Reiniciar:        sudo systemctl restart ${SERVICE_NAME}"
-echo "  Parar:            sudo systemctl stop ${SERVICE_NAME}"
-echo "  Desinstalar:      sudo systemctl disable --now ${SERVICE_NAME}"
+echo "  Configure STB:    python3 ${APP_DIR}/loop.py --stb"
+echo "  Service status:   sudo systemctl status ${SERVICE_NAME}"
+echo "  Live logs:        journalctl -u ${SERVICE_NAME} -f"
+echo "  Restart:          sudo systemctl restart ${SERVICE_NAME}"
+echo "  Stop:             sudo systemctl stop ${SERVICE_NAME}"
+echo "  Uninstall:        sudo systemctl disable --now ${SERVICE_NAME}"
 echo ""
-echo "  Looptime atual:   ${LOOPTIME}s  (muda com: LOOPTIME=30 sudo ./setup.sh)"
+echo "  Current looptime: ${LOOPTIME}s  (change with: LOOPTIME=30 sudo ./setup.sh)"
 echo ""

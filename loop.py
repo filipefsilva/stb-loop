@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 STB Channel Loop — NOC Display
-Zapping contínuo de canais via ADB (USB ou TCP) num Android TV Box.
-Suporta ligação por USB (cabo) ou por rede (TCP).
+Continuous channel zapping via ADB (USB or TCP) on an Android TV Box.
+Supports USB (cable) or TCP (network) connection.
 """
 
 import argparse
@@ -46,24 +46,24 @@ log = logging.getLogger(__name__)
 
 def load_config() -> dict:
     if not CONFIG_FILE.exists():
-        log.error("Ficheiro de configuração não encontrado: %s", CONFIG_FILE)
-        log.error("Corre primeiro:  python loop.py --stb")
+        log.error("Config file not found: %s", CONFIG_FILE)
+        log.error("Run first:  python loop.py --stb")
         sys.exit(1)
     with open(CONFIG_FILE) as f:
         cfg = json.load(f)
 
-    # Modo ADB (default: tcp)
+    # ADB mode (default: tcp)
     mode = cfg.get("adb_mode", DEFAULT_ADB_MODE)
     if mode not in ("tcp", "usb"):
-        log.error("Campo 'adb_mode' inválido: '%s'. Usa 'tcp' ou 'usb'.", mode)
+        log.error("Invalid 'adb_mode': '%s'. Use 'tcp' or 'usb'.", mode)
         sys.exit(1)
     cfg["adb_mode"] = mode
 
-    # Campos obrigatórios consoante o modo
+    # Required fields depending on mode
     if mode == "tcp":
         for key in ("stb_ip", "stb_port"):
             if key not in cfg:
-                log.error("Campo '%s' em falta no config.json (modo TCP).", key)
+                log.error("Field '%s' missing in config.json (TCP mode).", key)
                 sys.exit(1)
     return cfg
 
@@ -71,22 +71,22 @@ def load_config() -> dict:
 def save_config(cfg: dict):
     with open(CONFIG_FILE, "w") as f:
         json.dump(cfg, f, indent=2)
-    log.info("Configuração guardada em %s", CONFIG_FILE)
+    log.info("Configuration saved to %s", CONFIG_FILE)
 
 
 # ---------------------------------------------------------------------------
-# Wizard interactivo
+# Interactive wizard
 # ---------------------------------------------------------------------------
 
 def wizard():
-    print("\n=== STB Channel Loop — Configuração ===\n")
+    print("\n=== STB Channel Loop — Setup ===\n")
 
-    # Escolher modo ADB
-    print("Modo de ligação ADB:")
-    print("  1 — TCP (rede/IP)")
-    print("  2 — USB (cabo)")
+    # Choose ADB mode
+    print("ADB connection mode:")
+    print("  1 — TCP (network)")
+    print("  2 — USB (cable)")
     while True:
-        choice = input(f"Escolhe [default: {DEFAULT_ADB_MODE}]: ").strip().lower()
+        choice = input(f"Choice [default: {DEFAULT_ADB_MODE}]: ").strip().lower()
         if not choice:
             choice = DEFAULT_ADB_MODE
             break
@@ -96,37 +96,37 @@ def wizard():
         if choice in ("2", "usb"):
             choice = "usb"
             break
-        print("Opção inválida. Escolhe 1 (TCP) ou 2 (USB).")
+        print("Invalid option. Choose 1 (TCP) or 2 (USB).")
     mode = choice
     cfg = {"adb_mode": mode}
 
     if mode == "tcp":
         while True:
-            ip = input("\nIP da STB (ex: 192.168.1.100): ").strip()
+            ip = input("\nSTB IP address (e.g. 192.168.1.100): ").strip()
             if not ip:
-                print("IP não pode ser vazio.")
+                print("IP cannot be empty.")
                 continue
             ip_pattern = r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"
             if not re.match(ip_pattern, ip):
-                print("Formato de IP inválido. Usa o formato: 192.168.1.100")
+                print("Invalid IP format. Use: 192.168.1.100")
                 continue
             if not all(0 <= int(octet) <= 255 for octet in ip.split(".")):
-                print("Octetos do IP fora do intervalo 0-255.")
+                print("IP octets out of 0-255 range.")
                 continue
             break
-        port_str = input(f"Porta ADB [default: {ADB_PORT_DEFAULT}]: ").strip()
+        port_str = input(f"ADB port [default: {ADB_PORT_DEFAULT}]: ").strip()
         port = int(port_str) if port_str else ADB_PORT_DEFAULT
         cfg["stb_ip"] = ip
         cfg["stb_port"] = port
         target_desc = f"{ip}:{port}"
     else:
-        target_desc = "USB (cabo)"
-        print("\nModo USB: a STB será detectada automaticamente.")
-        print("Confirma que o cabo USB está ligado e a depuração USB activada.")
+        target_desc = "USB (cable)"
+        print("\nUSB mode: the STB will be auto-detected.")
+        print("Make sure the USB cable is connected and USB Debugging is enabled.")
 
     save_config(cfg)
-    print(f"\nConfiguração guardada: modo={mode} | {target_desc}")
-    print("Podes agora correr:  python loop.py\n")
+    print(f"\nConfiguration saved: mode={mode} | {target_desc}")
+    print("You can now run:  python loop.py\n")
 
 
 # ---------------------------------------------------------------------------
@@ -134,23 +134,23 @@ def wizard():
 # ---------------------------------------------------------------------------
 
 def adb(*args) -> subprocess.CompletedProcess:
-    """Executa um comando adb e devolve o resultado."""
+    """Run an ADB command and return the result."""
     cmd = ["adb"] + list(args)
     try:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=10)
     except subprocess.TimeoutExpired:
-        log.warning("Comando ADB excedeu timeout: %s", " ".join(cmd))
-        # Devolve um objecto com returncode != 0 para o chamador tratar
+        log.warning("ADB command timed out: %s", " ".join(cmd))
+        # Return a result with non-zero exit code for the caller to handle
         return subprocess.CompletedProcess(cmd, -1, stdout="", stderr="timeout")
 
 
 def adb_connect(cfg: dict) -> bool:
-    """Liga ao STB. Em modo USB verifica se o dispositivo está presente."""
+    """Connect to the STB. For USB mode, just checks if the device is present."""
     if cfg["adb_mode"] == "usb":
-        return adb_is_connected(cfg)  # Dispositivo USB aparece sozinho — só verifica
+        return adb_is_connected(cfg)
 
     target = f"{cfg['stb_ip']}:{cfg['stb_port']}"
-    log.info("A ligar ao STB %s …", target)
+    log.info("Connecting to STB %s ...", target)
     result = adb("connect", target)
     output = (result.stdout + result.stderr).strip()
     log.info("adb connect: %s", output)
@@ -158,13 +158,13 @@ def adb_connect(cfg: dict) -> bool:
 
 
 def adb_is_connected(cfg: dict) -> bool:
-    """Verifica se a STB está ligada via ADB."""
+    """Check if the STB is connected via ADB."""
     result = adb("devices")
     for line in result.stdout.splitlines():
         if "device" not in line or not line.strip():
             continue
         if cfg["adb_mode"] == "usb":
-            # Dispositivos USB aparecem sem ':' no serial
+            # USB devices show up without ':' in the serial
             if ":" not in line.split()[0]:
                 return True
         else:
@@ -175,7 +175,7 @@ def adb_is_connected(cfg: dict) -> bool:
 
 
 def adb_send_keycode(cfg: dict, keycode: str) -> bool:
-    """Envia um keyevent para a STB."""
+    """Send a keyevent to the STB."""
     if cfg["adb_mode"] == "usb":
         result = adb("-d", "shell", "input", "keyevent", keycode)
     else:
@@ -185,7 +185,7 @@ def adb_send_keycode(cfg: dict, keycode: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Loop principal
+# Main loop
 # ---------------------------------------------------------------------------
 
 def channel_loop(cfg: dict, loop_time: int):
@@ -193,18 +193,18 @@ def channel_loop(cfg: dict, loop_time: int):
     target_desc = "USB" if mode == "usb" else f"{cfg['stb_ip']}:{cfg['stb_port']}"
     keycode = "KEYCODE_CHANNEL_UP"
 
-    log.info("Iniciando channel loop — STB: %s | Modo: %s | Intervalo: %ss",
+    log.info("Starting channel loop — STB: %s | Mode: %s | Interval: %ss",
              target_desc, mode, loop_time)
-    log.info("Prima CTRL+C para terminar.")
+    log.info("Press CTRL+C to stop.")
 
-    # Ligação inicial (modo USB é imediata)
+    # Initial connection (USB mode is immediate)
     attempts = 0
     while not adb_connect(cfg):
         attempts += 1
         if attempts >= MAX_RETRIES:
-            log.error("Falha na ligação após %d tentativas. A sair.", MAX_RETRIES)
+            log.error("Connection failed after %d attempts. Exiting.", MAX_RETRIES)
             sys.exit(1)
-        log.warning("Falha na ligação (tentativa %d/%d). Nova tentativa em %ds…",
+        log.warning("Connection failed (attempt %d/%d). Retrying in %ds...",
                     attempts, MAX_RETRIES, RETRY_DELAY)
         time.sleep(RETRY_DELAY)
 
@@ -213,32 +213,32 @@ def channel_loop(cfg: dict, loop_time: int):
     try:
         while True:
             if not adb_is_connected(cfg):
-                log.warning("Ligação perdida. A reconectar…")
+                log.warning("Connection lost. Reconnecting...")
                 connected = False
                 attempts = 0
                 while not connected:
                     attempts += 1
                     if attempts > MAX_RETRIES:
-                        log.error("Reconexão falhou após %d tentativas. A sair.", MAX_RETRIES)
+                        log.error("Reconnection failed after %d attempts. Exiting.", MAX_RETRIES)
                         sys.exit(1)
                     connected = adb_connect(cfg)
                     if not connected:
-                        log.warning("Reconexão falhada (tentativa %d/%d). Nova tentativa em %ds…",
+                        log.warning("Reconnection failed (attempt %d/%d). Retrying in %ds...",
                                     attempts, MAX_RETRIES, RETRY_DELAY)
                         time.sleep(RETRY_DELAY)
-                log.info("Reconectado com sucesso.")
+                log.info("Reconnected successfully.")
 
             ok = adb_send_keycode(cfg, keycode)
             zap_count += 1
             if ok:
-                log.info("Zap #%d → %s enviado", zap_count, keycode)
+                log.info("Zap #%d → %s sent", zap_count, keycode)
             else:
-                log.warning("Zap #%d → falha ao enviar %s", zap_count, keycode)
+                log.warning("Zap #%d → failed to send %s", zap_count, keycode)
 
             time.sleep(loop_time)
 
     except KeyboardInterrupt:
-        log.info("Interrompido pelo utilizador (CTRL+C). Total de zaps: %d", zap_count)
+        log.info("Interrupted by user (CTRL+C). Total zaps: %d", zap_count)
         sys.exit(0)
 
 
@@ -249,25 +249,25 @@ def channel_loop(cfg: dict, loop_time: int):
 def main():
     setup_logging()
 
-    # Verifica se ADB está instalado
+    # Check that ADB is installed
     if shutil.which("adb") is None:
-        log.error("ADB não encontrado. Instala com: sudo apt install -y adb")
+        log.error("ADB not found. Install with: sudo apt install -y adb")
         sys.exit(1)
 
     parser = argparse.ArgumentParser(
-        description="STB Channel Loop — zapping contínuo via ADB para NOC"
+        description="STB Channel Loop — continuous channel cycling via ADB for NOC display"
     )
     parser.add_argument(
         "--looptime",
         type=int,
         default=DEFAULT_LOOP_TIME,
         metavar="N",
-        help=f"Segundos entre cada zap (default: {DEFAULT_LOOP_TIME})",
+        help=f"Seconds between zaps (default: {DEFAULT_LOOP_TIME})",
     )
     parser.add_argument(
         "--stb",
         action="store_true",
-        help="Lança o wizard interactivo para configurar a ligação ao STB",
+        help="Launch the interactive wizard to configure the STB connection",
     )
 
     args = parser.parse_args()
