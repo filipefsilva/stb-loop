@@ -1,0 +1,4 @@
+# STB Channel Loop — dependências Python
+# O script atual usa apenas a biblioteca standard do Python 3.
+# Coloca aqui dependências adicionais se fores adicionar features.
+# Exemplo: requests, paho-mqtt, etc.
