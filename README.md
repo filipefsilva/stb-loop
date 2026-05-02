@@ -102,7 +102,23 @@ sudo systemctl stop stb-loop.service
 sudo systemctl disable stb-loop.service
 ```
 
-### Ficheiro de serviço (criado automaticamente pelo setup.sh)
+---
+
+## Actualizar para a versão mais recente
+
+Sempre que houver alterações no código, actualiza no Raspberry Pi com:
+
+```bash
+cd ~/stb-loop
+git pull
+sudo ./update.sh
+```
+
+O `update.sh` copia os ficheiros novos para `/opt/stb-loop`, instala dependências e reinicia o serviço.
+
+---
+
+## Ficheiro de serviço (criado automaticamente pelo setup.sh)
 
 ```ini
 [Unit]
@@ -140,6 +156,7 @@ WantedBy=multi-user.target
 stb-loop/
   loop.py          — script principal
   setup.sh         — script de instalação completa
+  update.sh        — script de actualização
   requirements.txt — dependências Python
   config.json      — configuração da STB (gerado pelo --stb wizard)
   README.md        — este ficheiro
@@ -156,6 +173,7 @@ stb-loop/
 | Configurar STB | `sudo python3 /opt/stb-loop/loop.py --stb` |
 | Correr manual (10s) | `python3 /opt/stb-loop/loop.py` |
 | Correr manual (30s) | `python3 /opt/stb-loop/loop.py --looptime 30` |
+| Actualizar app | `git pull && sudo ./update.sh` |
 | Estado do serviço | `sudo systemctl status stb-loop.service` |
 | Logs em direto | `journalctl -u stb-loop.service -f` |
 | Reiniciar serviço | `sudo systemctl restart stb-loop.service` |
