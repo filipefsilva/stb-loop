@@ -48,7 +48,10 @@ log "Files copied."
 # 3. Install Python dependencies
 log "3/4 Installing Python dependencies ..."
 if [ -f "${APP_DIR}/requirements.txt" ]; then
-    pip3 install -q -r "${APP_DIR}/requirements.txt" || true
+    deps=$(grep -v '^\s*#' "${APP_DIR}/requirements.txt" | grep -v '^\s*$' | wc -l)
+    if [ "$deps" -gt 0 ]; then
+        pip3 install -q -r "${APP_DIR}/requirements.txt" --break-system-packages || true
+    fi
 fi
 log "Dependencies OK."
 

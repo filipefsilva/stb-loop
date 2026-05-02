@@ -103,7 +103,11 @@ fi
 log "4/5 Installing Python dependencies ..."
 
 if [ -f "${APP_DIR}/requirements.txt" ]; then
-    pip3 install -q -r "${APP_DIR}/requirements.txt" || true
+    # Only run pip if there are actual packages (skip comments/empty lines)
+    deps=$(grep -v '^\s*#' "${APP_DIR}/requirements.txt" | grep -v '^\s*$' | wc -l)
+    if [ "$deps" -gt 0 ]; then
+        pip3 install -q -r "${APP_DIR}/requirements.txt" --break-system-packages || true
+    fi
 fi
 log "Python dependencies OK."
 
@@ -158,7 +162,7 @@ fi
 # ---------------------------------------------------------------------------
 
 chown -R "${APP_USER}:${APP_USER}" "${APP_DIR}"
-chmod 750 "${APP_DIR}"
+chmod 755 "${APP_DIR}"
 chmod 640 "${APP_DIR}/config.json" 2>/dev/null || true
 chmod 755 "${APP_DIR}/loop.py"
 
