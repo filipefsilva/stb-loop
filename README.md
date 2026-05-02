@@ -1,7 +1,11 @@
 # STB Channel Loop — NOC Display
 
 Script Python para Raspberry Pi Zero W que faz zapping contínuo de canais
-numa Android TV Box (STB) via ADB over TCP, para exibição permanente no ecrã do NOC.
+numa Android TV Box (STB) via ADB, para exibição permanente no ecrã do NOC.
+
+Suporta dois modos de ligação:
+- **TCP** — pela rede (Wi-Fi/Ethernet)
+- **USB** — por cabo USB directo
 
 ---
 
@@ -42,10 +46,12 @@ Os passos exactos variam consoante o firmware, mas o procedimento geral é:
 2. Clica 7 vezes em **Build number** para activar as opções de programador
 3. Vai a **Definições → Opções de programador**
 4. Activa **Depuração USB** (USB Debugging)
-5. Activa **Depuração ADB por rede** (Network ADB Debugging) — nalguns dispositivos aparece como *ADB over network* ou *Remote debugging*
-6. Anota o IP da STB em **Definições → Rede**
+5. **Modo TCP:** Activa também **Depuração ADB por rede** (*Network ADB Debugging*)
+6. **Modo TCP:** Anota o IP da STB em **Definições → Rede**
 
 > **Nota:** Alguns dispositivos (ex: Xiaomi, NVIDIA Shield) têm a opção em menus ligeiramente diferentes. Procura por "ADB" nas definições.
+>
+> **Modo USB:** Apenas a depuração USB standard é necessária. Liga o cabo USB entre o Pi e a STB.
 
 ---
 
@@ -55,16 +61,27 @@ Os passos exactos variam consoante o firmware, mas o procedimento geral é:
 sudo python3 /opt/stb-loop/loop.py --stb
 ```
 
-Introduz o IP e a porta ADB da STB quando pedido. O ficheiro `config.json` é criado automaticamente.
+O wizard pergunta primeiro o modo de ligação (TCP ou USB) e depois pede os dados necessários.
 
-Podes também editar `/opt/stb-loop/config.json` manualmente:
+### Modo TCP
 
 ```json
 {
+  "adb_mode": "tcp",
   "stb_ip": "192.168.1.100",
   "stb_port": 5555
 }
 ```
+
+### Modo USB
+
+```json
+{
+  "adb_mode": "usb"
+}
+```
+
+O ficheiro `config.json` é criado automaticamente em `/opt/stb-loop/`.
 
 ---
 
@@ -193,6 +210,20 @@ stb-loop/
 
 **Script liga mas o canal não muda**  
 → Confirma que a STB está numa app de TV em directo que suporte `KEYCODE_CHANNEL_UP`. Em algumas apps de streaming o keycode não tem efeito.
+
+**Modo USB: dispositivo não detectado**  
+→ Verifica o cabo USB e confirma que a depuração USB está activa na STB. Testa com `adb devices` — deve aparecer um dispositivo sem `:` no nome.
+
+**Modo USB: `adb: insufficient permissions`**  
+→ O utilizador `stb-loop` precisa de acesso ao dispositivo USB. Cria uma regra udev:
+
+```bash
+echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="<vendor>", MODE="0666"' | sudo tee /etc/udev/rules.d/51-android.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+(O vendor ID pode ser obtido com `lsusb`)
 
 **Serviço não arranca**  
 → Verifica os logs: `journalctl -u stb-loop.service -f`. Confirma que o `config.json` existe em `/opt/stb-loop/`.
