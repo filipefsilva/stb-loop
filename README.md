@@ -1,69 +1,69 @@
 # STB Channel Loop — NOC Display
 
-Script Python para Raspberry Pi Zero W que faz zapping contínuo de canais
-numa Android TV Box (STB) via ADB, para exibição permanente no ecrã do NOC.
+Python script for Raspberry Pi Zero W that continuously cycles through channels
+on an Android TV Box (STB) via ADB, for permanent display on a NOC screen.
 
-Suporta dois modos de ligação:
-- **TCP** — pela rede (Wi-Fi/Ethernet)
-- **USB** — por cabo USB directo
-
----
-
-## Requisitos
-
-- Raspberry Pi Zero W com Raspberry Pi OS (Bookworm ou Bullseye)
-- Python 3 (incluído por defeito no Raspberry Pi OS)
-- ADB instalado no Pi
-- Android TV Box com depuração ADB activada e acessível via TCP na rede local
+Supports two connection modes:
+- **TCP** — over the network (Wi-Fi/Ethernet)
+- **USB** — direct USB cable connection
 
 ---
 
-## Instalação rápida (recomendada)
+## Requirements
+
+- Raspberry Pi Zero W running Raspberry Pi OS (Bookworm or Bullseye)
+- Python 3 (included by default in Raspberry Pi OS)
+- ADB installed on the Pi
+- Android TV Box with ADB debugging enabled
+
+---
+
+## Quick Install (recommended)
 
 ```bash
-# Clonar o repositório
+# Clone the repository
 git clone https://github.com/filipefsilva/stb-loop.git
 cd stb-loop
 
-# Instalar tudo (cria utilizador, instala deps, configura serviço)
+# Install everything (creates service user, installs deps, sets up systemd)
 sudo ./setup.sh
 
-# Configurar a STB
+# Configure the STB
 sudo python3 /opt/stb-loop/loop.py --stb
 ```
 
-O serviço `stb-loop.service` fica activo e arranca automaticamente em cada boot.
+The `stb-loop.service` is active and starts automatically on every boot.
 
-Usa `LOOPTIME=30 sudo ./setup.sh` para mudar o intervalo (default: 10s).
+Use `LOOPTIME=30 sudo ./setup.sh` to change the zap interval (default: 10s).
 
 ---
 
-## Activar depuração ADB na STB (Android TV Box)
+## Enable ADB Debugging on the STB (Android TV Box)
 
-Os passos exactos variam consoante o firmware, mas o procedimento geral é:
+Exact steps vary by firmware, but the general procedure is:
 
-1. Vai a **Definições → Sobre o dispositivo**
-2. Clica 7 vezes em **Build number** para activar as opções de programador
-3. Vai a **Definições → Opções de programador**
-4. Activa **Depuração USB** (USB Debugging)
-5. **Modo TCP:** Activa também **Depuração ADB por rede** (*Network ADB Debugging*)
-6. **Modo TCP:** Anota o IP da STB em **Definições → Rede**
+1. Go to **Settings → About device**
+2. Tap **Build number** 7 times to enable developer options
+3. Go to **Settings → Developer options**
+4. Enable **USB Debugging**
+5. **TCP mode:** Also enable **Network ADB Debugging** (*ADB over network*)
+6. **TCP mode:** Note the STB's IP address under **Settings → Network**
 
-> **Nota:** Alguns dispositivos (ex: Xiaomi, NVIDIA Shield) têm a opção em menus ligeiramente diferentes. Procura por "ADB" nas definições.
+> **Note:** Some devices (e.g. Xiaomi, NVIDIA Shield) have these options in slightly different menus. Search for "ADB" in Settings.
 >
-> **Modo USB:** Apenas a depuração USB standard é necessária. Liga o cabo USB entre o Pi e a STB.
+> **USB mode:** Only standard USB Debugging is required. Connect the USB cable between the Pi and the STB.
 
 ---
 
-## Configurar a STB (wizard interactivo)
+## Configure the STB (Interactive Wizard)
 
 ```bash
 sudo python3 /opt/stb-loop/loop.py --stb
 ```
 
-O wizard pergunta primeiro o modo de ligação (TCP ou USB) e depois pede os dados necessários.
+The wizard first asks for the connection mode (TCP or USB), then prompts for the required details.
 
-### Modo TCP
+### TCP Mode
 
 ```json
 {
@@ -73,7 +73,7 @@ O wizard pergunta primeiro o modo de ligação (TCP ou USB) e depois pede os dad
 }
 ```
 
-### Modo USB
+### USB Mode
 
 ```json
 {
@@ -81,49 +81,49 @@ O wizard pergunta primeiro o modo de ligação (TCP ou USB) e depois pede os dad
 }
 ```
 
-O ficheiro `config.json` é criado automaticamente em `/opt/stb-loop/`.
+The `config.json` file is created automatically under `/opt/stb-loop/`.
 
 ---
 
-## Correr manualmente (sem serviço)
+## Run Manually (Without the Service)
 
 ```bash
-# Com intervalo por defeito (10 segundos entre zaps)
+# Default interval (10 seconds between zaps)
 python3 /opt/stb-loop/loop.py
 
-# Com intervalo personalizado (ex: 30 segundos)
+# Custom interval (e.g. 30 seconds)
 python3 /opt/stb-loop/loop.py --looptime 30
 ```
 
-O script reconecta automaticamente se a ligação ADB cair.  
-Para terminar: **CTRL+C**
+The script reconnects automatically if the ADB connection drops.  
+Press **CTRL+C** to stop.
 
 ---
 
-## Gerir o serviço systemd
+## Manage the systemd Service
 
-O `setup.sh` já configura e activa o serviço. Comandos para gestão:
+`setup.sh` already configures and enables the service. Management commands:
 
 ```bash
-# Estado do serviço
+# Service status
 sudo systemctl status stb-loop.service
 
-# Logs em tempo real
+# Live logs
 journalctl -u stb-loop.service -f
 
-# Reiniciar
+# Restart
 sudo systemctl restart stb-loop.service
 
-# Parar / desactivar
+# Stop / disable
 sudo systemctl stop stb-loop.service
 sudo systemctl disable stb-loop.service
 ```
 
 ---
 
-## Actualizar para a versão mais recente
+## Update to the Latest Version
 
-Sempre que houver alterações no código, actualiza no Raspberry Pi com:
+Whenever code changes are pushed to the repo, update on the Raspberry Pi with:
 
 ```bash
 cd ~/stb-loop
@@ -131,11 +131,11 @@ git pull
 sudo ./update.sh
 ```
 
-O `update.sh` copia os ficheiros novos para `/opt/stb-loop`, instala dependências e reinicia o serviço.
+`update.sh` copies the new files to `/opt/stb-loop`, installs any new Python dependencies, and restarts the service.
 
 ---
 
-## Ficheiro de serviço (criado automaticamente pelo setup.sh)
+## Service File (Created Automatically by setup.sh)
 
 ```ini
 [Unit]
@@ -153,7 +153,7 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# Segurança
+# Security hardening
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
@@ -167,55 +167,55 @@ WantedBy=multi-user.target
 
 ---
 
-## Estrutura do projecto
+## Project Structure
 
 ```
 stb-loop/
-  loop.py          — script principal
-  setup.sh         — script de instalação completa
-  update.sh        — script de actualização
-  requirements.txt — dependências Python
-  config.json      — configuração da STB (gerado pelo --stb wizard)
-  README.md        — este ficheiro
+  loop.py          — main script
+  setup.sh         — full installation script
+  update.sh        — update script
+  requirements.txt — Python dependencies
+  config.json      — STB configuration (generated by --stb wizard)
+  README.md        — this file
 ```
 
 ---
 
-## Referência rápida de comandos
+## Quick Reference
 
-| Acção | Comando |
+| Action | Command |
 |---|---|
-| Instalar tudo | `sudo ./setup.sh` |
-| Instalar (30s) | `LOOPTIME=30 sudo ./setup.sh` |
-| Configurar STB | `sudo python3 /opt/stb-loop/loop.py --stb` |
-| Correr manual (10s) | `python3 /opt/stb-loop/loop.py` |
-| Correr manual (30s) | `python3 /opt/stb-loop/loop.py --looptime 30` |
-| Actualizar app | `git pull && sudo ./update.sh` |
-| Estado do serviço | `sudo systemctl status stb-loop.service` |
-| Logs em direto | `journalctl -u stb-loop.service -f` |
-| Reiniciar serviço | `sudo systemctl restart stb-loop.service` |
+| Install everything | `sudo ./setup.sh` |
+| Install (30s interval) | `LOOPTIME=30 sudo ./setup.sh` |
+| Configure STB | `sudo python3 /opt/stb-loop/loop.py --stb` |
+| Run manually (10s) | `python3 /opt/stb-loop/loop.py` |
+| Run manually (30s) | `python3 /opt/stb-loop/loop.py --looptime 30` |
+| Update app | `git pull && sudo ./update.sh` |
+| Service status | `sudo systemctl status stb-loop.service` |
+| Live logs | `journalctl -u stb-loop.service -f` |
+| Restart service | `sudo systemctl restart stb-loop.service` |
 
 ---
 
-## Resolução de problemas
+## Troubleshooting
 
 **`adb: command not found`**  
-→ O `setup.sh` instala-o automaticamente. Manualmente: `sudo apt install -y adb`
+→ `setup.sh` installs it automatically. Manually: `sudo apt install -y adb`
 
-**`Connection refused` ao ligar ao STB**  
-→ Confirma que a depuração ADB por rede está activa na STB e que o IP/porta estão correctos no `config.json`.
+**`Connection refused` when connecting to the STB**  
+→ Verify that Network ADB Debugging is enabled on the STB and the IP/port in `config.json` are correct.
 
-**STB pede confirmação de ligação ADB**  
-→ Liga um ecrã à STB, aceita a autorização de depuração e marca "Confiar sempre neste computador".
+**STB asks for ADB connection confirmation**  
+→ Connect a display to the STB, accept the debugging authorization, and check "Always allow from this computer".
 
-**Script liga mas o canal não muda**  
-→ Confirma que a STB está numa app de TV em directo que suporte `KEYCODE_CHANNEL_UP`. Em algumas apps de streaming o keycode não tem efeito.
+**Script connects but the channel doesn't change**  
+→ Make sure the STB is running a live TV app that supports `KEYCODE_CHANNEL_UP`. Some streaming apps ignore this keycode.
 
-**Modo USB: dispositivo não detectado**  
-→ Verifica o cabo USB e confirma que a depuração USB está activa na STB. Testa com `adb devices` — deve aparecer um dispositivo sem `:` no nome.
+**USB mode: device not detected**  
+→ Check the USB cable and confirm USB Debugging is enabled on the STB. Test with `adb devices` — a device entry without `:` in its name should appear.
 
-**Modo USB: `adb: insufficient permissions`**  
-→ O utilizador `stb-loop` precisa de acesso ao dispositivo USB. Cria uma regra udev:
+**USB mode: `adb: insufficient permissions`**  
+→ The `stb-loop` user needs access to the USB device. Create a udev rule:
 
 ```bash
 echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="<vendor>", MODE="0666"' | sudo tee /etc/udev/rules.d/51-android.rules
@@ -223,14 +223,14 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-(O vendor ID pode ser obtido com `lsusb`)
+(The vendor ID can be found with `lsusb`)
 
-**Serviço não arranca**  
-→ Verifica os logs: `journalctl -u stb-loop.service -f`. Confirma que o `config.json` existe em `/opt/stb-loop/`.
+**Service won't start**  
+→ Check the logs: `journalctl -u stb-loop.service -f`. Make sure `config.json` exists in `/opt/stb-loop/`.
 
 ---
 
-## Desinstalar
+## Uninstall
 
 ```bash
 sudo systemctl disable --now stb-loop.service
