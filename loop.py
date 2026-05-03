@@ -161,15 +161,21 @@ def adb_is_connected(cfg: dict) -> bool:
     """Check if the STB is connected via ADB."""
     result = adb("devices")
     for line in result.stdout.splitlines():
-        if "device" not in line or not line.strip():
+        line = line.strip()
+        if not line:
             continue
+        # ADB device lines are format: "<serial>\tdevice"
+        parts = line.split()
+        if len(parts) != 2 or parts[1] != "device":
+            continue
+        serial = parts[0]
         if cfg["adb_mode"] == "usb":
             # USB devices show up without ':' in the serial
-            if ":" not in line.split()[0]:
+            if ":" not in serial:
                 return True
         else:
             target = f"{cfg['stb_ip']}:{cfg['stb_port']}"
-            if target in line:
+            if serial == target:
                 return True
     return False
 
