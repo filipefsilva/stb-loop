@@ -80,9 +80,11 @@ ensure_dwc2_overlay() {
         return
     fi
 
-    # Already configured?
-    if grep -qE '^\s*dtoverlay\s*=\s*dwc2' "$config_file" 2>/dev/null; then
-        log "dwc2 overlay already present in config.txt."
+    # Already configured in [all] section?
+    # The dwc2 line inside [cm5] does NOT apply to Pi Zero — it's conditional.
+    # Only count lines that are outside conditional sections ([cm4], [cm5], etc.).
+    if awk 'BEGIN{ok=1} /^\[cm[0-9]\]/{ok=0} /^\[all\]/{ok=1} /dtoverlay\s*=\s*dwc2/ && ok{found=1; exit} END{exit !found}' "$config_file" 2>/dev/null; then
+        log "dwc2 overlay already present in [all] section."
         return
     fi
 
