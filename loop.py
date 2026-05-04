@@ -22,6 +22,11 @@ DEFAULT_ADB_MODE = "tcp"
 ADB_PORT_DEFAULT = 5555
 MAX_RETRIES = 20
 RETRY_DELAY = 5
+RECONNECT_ON_FAIL = True
+RECONNECT_MAX_RETRIES = 3
+RECONNECT_RETRY_DELAY = 1
+APP_PACKAGE_DEFAULT = ""
+APP_ACTIVITY_DEFAULT = ""
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +70,16 @@ def load_config() -> dict:
             if key not in cfg:
                 log.error("Field '%s' missing in config.json (TCP mode).", key)
                 sys.exit(1)
+
+    # Optional: app to launch on startup
+    cfg.setdefault("app_package", APP_PACKAGE_DEFAULT)
+    cfg.setdefault("app_activity", APP_ACTIVITY_DEFAULT)
+
+    # Optional: reconnect settings
+    cfg.setdefault("reconnect_on_fail", RECONNECT_ON_FAIL)
+    cfg.setdefault("reconnect_max_retries", RECONNECT_MAX_RETRIES)
+    cfg.setdefault("reconnect_retry_delay", RECONNECT_RETRY_DELAY)
+
     return cfg
 
 
@@ -160,7 +175,28 @@ def wizard():
 
     save_config(cfg)
     print(f"\nConfiguration saved: mode={mode} | {target_desc}")
-    print("You can now run:  python loop.py\n")
+
+    # Optional: configure app to launch
+    print("\nAuto-launch app on startup (optional):")
+    pkg = input("  Package name (e.g. com.example.app) [skip]: ").strip()
+    if pkg:
+        cfg["app_package"] = pkg
+        act = input("  Activity name (e.g. .MainActivity) [skip]: ").strip()
+        if act:
+            cfg["app_activity"] = act
+        save_config(cfg)
+        print("App launch configured.")
+
+    # Optional: reconnect settings
+    print("\nReconnect settings:")
+    print("  1 — Enabled (default)")
+    print("  2 — Disabled")
+    rc = input(f"  Choice [1]: ").strip()
+    if rc == "2":
+        cfg["reconnect_on_fail"] = False
+        save_config(cfg)
+
+    print("\nYou can now run:  python loop.py\n")
 
 
 # ---------------------------------------------------------------------------
@@ -224,6 +260,57 @@ def adb_send_keycode(cfg: dict, keycode: str) -> bool:
     return result.returncode == 0
 
 
+def adb_open_app(cfg: dict) -> bool:
+    """Launch the configured app on the STB if not already running."""
+    pkg = cfg.get("app_package", "")
+    act = cfg.get("app_activity", "")
+    if not pkg:
+        return True  # no app configured, not a failure
+
+    # Check if app is already running
+    if cfg["adb_mode"] == "usb":
+        result = adb("-d", "shell", "pidof", pkg)
+    else:
+        target = f"{cfg['stb_ip']}:{cfg['stb_port']}"
+        result = adb("-s", target, "shell", "pidof", pkg)
+
+    if result.returncode == 0 and result.stdout.strip():
+        log.info("App '%s' already running (PID %s).", pkg, result.stdout.strip())
+        return True
+
+    # Launch the app
+    component = f"{pkg}/{act}" if act else pkg
+    log.info("Launching app: %s ...", component)
+    if cfg["adb_mode"] == "usb":
+        result = adb("-d", "shell", "am", "start", "-n", component)
+    else:
+        target = f"{cfg['stb_ip']}:{cfg['stb_port']}"
+        result = adb("-s", target, "shell", "am", "start", "-n", component)
+
+    if result.returncode == 0 and "Error" not in result.stdout:
+        log.info("App launched successfully.")
+        return True
+    else:
+        log.warning("Failed to launch app: %s", (result.stdout + result.stderr).strip())
+        return False
+
+
+def adb_reconnect(cfg: dict) -> bool:
+    """Attempt to reconnect to the STB. For USB, reset the ADB server.
+    For TCP, issue 'adb connect'."""
+    if cfg["adb_mode"] == "usb":
+        # For USB: kill/start server to force device re-enumeration
+        adb("kill-server")
+        time.sleep(1)
+        adb("start-server")
+        time.sleep(2)
+    else:
+        target = f"{cfg['stb_ip']}:{cfg['stb_port']}"
+        adb("disconnect", target)
+        time.sleep(1)
+    return adb_connect(cfg)
+
+
 # ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
@@ -232,6 +319,11 @@ def channel_loop(cfg: dict, loop_time: int):
     mode = cfg["adb_mode"]
     target_desc = "USB" if mode == "usb" else f"{cfg['stb_ip']}:{cfg['stb_port']}"
     keycode = "KEYCODE_CHANNEL_UP"
+
+    # Reconnect settings from config
+    reconnect_on_fail = cfg.get("reconnect_on_fail", RECONNECT_ON_FAIL)
+    reconnect_max_retries = cfg.get("reconnect_max_retries", RECONNECT_MAX_RETRIES)
+    reconnect_delay = cfg.get("reconnect_retry_delay", RECONNECT_RETRY_DELAY)
 
     log.info("Starting channel loop — STB: %s | Mode: %s | Interval: %ss",
              target_desc, mode, loop_time)
@@ -248,25 +340,38 @@ def channel_loop(cfg: dict, loop_time: int):
                     attempts, MAX_RETRIES, RETRY_DELAY)
         time.sleep(RETRY_DELAY)
 
+    # Launch app if configured
+    time.sleep(2)  # give the device a moment after connection
+    adb_open_app(cfg)
+
     zap_count = 0
 
     try:
         while True:
             if not adb_is_connected(cfg):
-                log.warning("Connection lost. Reconnecting...")
+                log.warning("Connection lost.")
+                if not reconnect_on_fail:
+                    log.error("Reconnect disabled in config. Exiting.")
+                    sys.exit(1)
+
                 connected = False
                 attempts = 0
                 while not connected:
                     attempts += 1
-                    if attempts > MAX_RETRIES:
-                        log.error("Reconnection failed after %d attempts. Exiting.", MAX_RETRIES)
+                    if attempts > reconnect_max_retries:
+                        log.error("Reconnection failed after %d attempts. Exiting.",
+                                  reconnect_max_retries)
                         sys.exit(1)
-                    connected = adb_connect(cfg)
+                    log.warning("Reconnecting (attempt %d/%d)...",
+                                attempts, reconnect_max_retries)
+                    connected = adb_reconnect(cfg)
                     if not connected:
-                        log.warning("Reconnection failed (attempt %d/%d). Retrying in %ds...",
-                                    attempts, MAX_RETRIES, RETRY_DELAY)
-                        time.sleep(RETRY_DELAY)
+                        time.sleep(reconnect_delay)
+
                 log.info("Reconnected successfully.")
+                # Re-launch app in case the STB was restarted
+                time.sleep(1)
+                adb_open_app(cfg)
 
             ok = adb_send_keycode(cfg, keycode)
             zap_count += 1
