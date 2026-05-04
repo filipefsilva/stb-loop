@@ -74,9 +74,9 @@ def save_config(cfg: dict):
 # ---------------------------------------------------------------------------
 
 def wizard():
-    print("\n=== STB Channel Loop — Setup (USB) ===\n")
+    print("\n=== STB Channel Loop — Reconfigure ===\n")
     print("USB mode: the STB will be auto-detected.")
-    print("Make sure the USB cable is connected and USB Debugging is enabled.\n")
+    print("(Run 'sudo ./setup.sh' for a full installation.)\n")
 
     cfg = {}
 
