@@ -159,7 +159,9 @@ log "4/5 Installing Python dependencies ..."
 
 if [ -f "${APP_DIR}/requirements.txt" ]; then
     # Only run pip if there are actual packages (skip comments/empty lines)
-    deps=$(grep -v '^\s*#' "${APP_DIR}/requirements.txt" | grep -v '^\s*$' | wc -l)
+    # Each grep may return 1 on no matches; wrap with || true for pipefail safety
+    deps=$( (grep -v '^\s*#' "${APP_DIR}/requirements.txt" || true) | (grep -v '^\s*$' || true) | wc -l )
+    deps=${deps:-0}
     if [ "$deps" -gt 0 ]; then
         pip3 install -q -r "${APP_DIR}/requirements.txt" --break-system-packages || true
     fi
