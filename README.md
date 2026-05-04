@@ -1,12 +1,7 @@
 # STB Channel Loop — NOC Display
 
-Python script for Raspberry Pi (Zero W, Zero 2 W, or any model) that
-continuously cycles through channels on an Android TV Box (STB) via ADB,
-for permanent display on a NOC screen.
-
-Supports two connection modes:
-- **TCP** — over the network (Wi-Fi/Ethernet)
-- **USB** — direct USB cable connection
+Python script for Raspberry Pi that continuously cycles through channels
+on an Android TV Box (STB) via ADB over USB, for permanent display on a NOC screen.
 
 ---
 
@@ -16,14 +11,13 @@ Supports two connection modes:
 - Python 3 (included by default in Raspberry Pi OS)
 - ADB installed on the Pi
 - Android TV Box with ADB debugging enabled
-- **USB mode:** data-capable USB cable (not a charge-only cable)
+- Data-capable USB cable (not a charge-only cable)
 
 ---
 
-## Quick Install (recommended)
+## Quick Install
 
 ```bash
-# Clone the repository
 git clone https://github.com/filipefsilva/stb-loop.git
 cd stb-loop
 
@@ -44,20 +38,15 @@ Use `LOOPTIME=30 sudo ./setup.sh` to change the zap interval (default: 20s).
 
 ---
 
-## Enable ADB Debugging on the STB (Android TV Box)
-
-Exact steps vary by firmware, but the general procedure is:
+## Enable ADB Debugging on the STB
 
 1. Go to **Settings → About device**
 2. Tap **Build number** 7 times to enable developer options
 3. Go to **Settings → Developer options**
 4. Enable **USB Debugging**
-5. **TCP mode:** Also enable **Network ADB Debugging** (*ADB over network*)
-6. **TCP mode:** Note the STB's IP address under **Settings → Network**
+5. Connect the USB cable between the Pi and the STB
 
 > **Note:** Some devices (e.g. Xiaomi, NVIDIA Shield) have these options in slightly different menus. Search for "ADB" in Settings.
->
-> **USB mode:** Only standard USB Debugging is required. Connect the USB cable between the Pi and the STB.
 
 ---
 
@@ -67,34 +56,24 @@ Exact steps vary by firmware, but the general procedure is:
 sudo python3 /opt/stb-loop/loop.py --stb
 ```
 
-The wizard first asks for the connection mode (TCP or USB), then prompts for the required details.
+The wizard checks the USB connection and guides you through optional settings
+(app auto-launch, reconnect behavior).
 
-### TCP Mode
-
-```json
-{
-  "adb_mode": "tcp",
-  "stb_ip": "192.168.1.100",
-  "stb_port": 5555
-}
-```
-
-### USB Mode
+### Configuration File
 
 ```json
 {
-  "adb_mode": "usb",
   "app_package": "tv.perception.android.tvcabostp",
   "app_activity": "tv.perception.android.waterloo.WaterlooActivity",
   "reconnect_on_fail": true,
-  "reconnect_max_retries": 3,
+  "reconnect_max_retries": 0,
   "reconnect_retry_delay": 1
 }
 ```
 
-The `config.json` file is created automatically under `/opt/stb-loop/`.
+The `config.json` is created automatically under `/opt/stb-loop/`.
 
-#### USB Mode — First Connection & Authorization
+### First Connection & Authorization
 
 When you first connect the Android TV via USB, the TV will show a
 **"Allow USB debugging?"** popup. You may see this popup **twice**:
@@ -105,47 +84,41 @@ When you first connect the Android TV via USB, the TV will show a
 Check **"Always allow from this computer"** and tap **Allow** on both prompts.
 After that, the authorization is permanent.
 
-#### Auto-Launch App (optional)
+### Auto-Launch App
 
-If `app_package` is configured, the script will:
-- Check if the app is already running (via `pidof`)
-- Launch it automatically via `am start` if it's not
+If `app_package` is configured, the script will bring the app to foreground before
+every zap (via `am start`). This is useful when the STB's IPTV app exits or the
+device restarts.
 
-This is useful when the STB's IPTV app exits or the device restarts.
-
-#### Reconnect Settings
+### Reconnect Settings
 
 | Field | Default | Description |
 |---|---|---|
 | `reconnect_on_fail` | `true` | Automatically attempt to reconnect if ADB drops |
-| `reconnect_max_retries` | `3` | Max reconnection attempts before giving up |
+| `reconnect_max_retries` | `3` | Max reconnection attempts (`0` = infinite) |
 | `reconnect_retry_delay` | `1` | Seconds between reconnection attempts |
 
-**USB mode:** the reconnect sequence does `adb kill-server` + `adb start-server`
-to force device re-enumeration.
-
-**TCP mode:** uses `adb disconnect` + `adb connect`.
+The reconnect sequence does `adb kill-server` + `adb start-server` to force
+device re-enumeration over USB.
 
 ---
 
-## Run Manually (Without the Service)
+## Run Manually
 
 ```bash
-# Default interval (10 seconds between zaps)
+# Default interval (20 seconds)
 python3 /opt/stb-loop/loop.py
 
-# Custom interval (e.g. 30 seconds)
+# Custom interval
 python3 /opt/stb-loop/loop.py --looptime 30
 ```
 
-The script reconnects automatically if the ADB connection drops.  
-Press **CTRL+C** to stop.
+The script waits forever for the STB and reconnects automatically if the
+connection drops. Press **CTRL+C** to stop.
 
 ---
 
 ## Manage the systemd Service
-
-`setup.sh` already configures and enables the service. Management commands:
 
 ```bash
 # Service status
@@ -164,9 +137,7 @@ sudo systemctl disable stb-loop.service
 
 ---
 
-## Update to the Latest Version
-
-Whenever code changes are pushed to the repo, update on the Raspberry Pi with:
+## Update
 
 ```bash
 cd ~/stb-loop
@@ -174,7 +145,7 @@ git pull
 sudo ./update.sh
 ```
 
-`update.sh` copies the new files to `/opt/stb-loop`, installs any new Python dependencies, and restarts the service.
+`update.sh` copies the new files to `/opt/stb-loop` and restarts the service.
 
 ---
 
@@ -231,7 +202,7 @@ stb-loop/
 | Install everything | `sudo ./setup.sh` |
 | Install (30s interval) | `LOOPTIME=30 sudo ./setup.sh` |
 | Configure STB | `sudo python3 /opt/stb-loop/loop.py --stb` |
-| Run manually (10s) | `python3 /opt/stb-loop/loop.py` |
+| Run manually (20s) | `python3 /opt/stb-loop/loop.py` |
 | Run manually (30s) | `python3 /opt/stb-loop/loop.py --looptime 30` |
 | Update app | `git pull && sudo ./update.sh` |
 | Service status | `sudo systemctl status stb-loop.service` |
@@ -242,19 +213,14 @@ stb-loop/
 
 ## Troubleshooting
 
-**`adb: command not found`**  
+**`adb: command not found`**
 → `setup.sh` installs it automatically. Manually: `sudo apt install -y adb`
 
-**`Connection refused` when connecting to the STB**  
-→ Verify that Network ADB Debugging is enabled on the STB and the IP/port in `config.json` are correct.
+**Script connects but the channel doesn't change**
+→ Make sure the STB is running a live TV app that supports `KEYCODE_CHANNEL_UP`.
+Some streaming apps ignore this keycode.
 
-**STB asks for ADB connection confirmation**  
-→ Connect a display to the STB, accept the debugging authorization, and check "Always allow from this computer".
-
-**Script connects but the channel doesn't change**  
-→ Make sure the STB is running a live TV app that supports `KEYCODE_CHANNEL_UP`. Some streaming apps ignore this keycode.
-
-**USB mode: device not detected**
+**Device not detected**
 → Check the following:
 
 1. **Cable:** Must be a data-capable USB cable (not charge-only). Test with another cable.
@@ -272,7 +238,7 @@ stb-loop/
    ```
    (Find your vendor ID with `lsusb` — common ones: `18d1` Google, `22b8` Motorola)
 
-**USB mode: device shows `unauthorized`**
+**Device shows `unauthorized`**
 → Accept the "Allow USB debugging?" popup on the Android TV screen.
    Check "Always allow from this computer" to make it permanent.
    If the popup doesn't appear: unplug/replug the USB cable, or restart ADB:
@@ -282,7 +248,7 @@ stb-loop/
    adb devices
    ```
 
-**Service won't start**  
+**Service won't start**
 → Check the logs: `journalctl -u stb-loop.service -f`. Make sure `config.json` exists in `/opt/stb-loop/`.
 
 ---
