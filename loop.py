@@ -261,38 +261,32 @@ def adb_send_keycode(cfg: dict, keycode: str) -> bool:
 
 
 def adb_open_app(cfg: dict) -> bool:
-    """Launch the configured app on the STB if not already running."""
+    """Bring the configured app to the foreground on the STB.
+    Always issues 'am start' — it's fast and idempotent:
+    if the app is already in foreground, nothing changes."""
     pkg = cfg.get("app_package", "")
     act = cfg.get("app_activity", "")
     if not pkg:
         return True  # no app configured, not a failure
 
-    # Check if app is already running
-    if cfg["adb_mode"] == "usb":
-        result = adb("-d", "shell", "pidof", pkg)
-    else:
-        target = f"{cfg['stb_ip']}:{cfg['stb_port']}"
-        result = adb("-s", target, "shell", "pidof", pkg)
-
-    if result.returncode == 0 and result.stdout.strip():
-        log.debug("App '%s' already running (PID %s).", pkg, result.stdout.strip())
-        return True
-
-    # Launch the app
     component = f"{pkg}/{act}" if act else pkg
-    log.info("Launching app: %s ...", component)
     if cfg["adb_mode"] == "usb":
         result = adb("-d", "shell", "am", "start", "-n", component)
     else:
         target = f"{cfg['stb_ip']}:{cfg['stb_port']}"
         result = adb("-s", target, "shell", "am", "start", "-n", component)
 
-    if result.returncode == 0 and "Error" not in result.stdout:
-        log.info("App launched successfully.")
+    output = (result.stdout + result.stderr).strip()
+    # Success: "Starting: Intent..." or "brought to the front"
+    if result.returncode == 0:
+        log.debug("App foreground: %s", output.split(chr(10))[0] if output else "OK")
         return True
     else:
-        log.warning("Failed to launch app: %s", (result.stdout + result.stderr).strip())
-        return False
+        # Only log warning if it actually failed (not just "brought to front")
+        if "Error" in output and "brought to the front" not in output:
+            log.warning("Failed to bring app to foreground: %s", output)
+            return False
+        return True
 
 
 def adb_reconnect(cfg: dict) -> bool:
