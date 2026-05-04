@@ -135,7 +135,7 @@ def wizard():
         cfg["reconnect_on_fail"] = False
         save_config(cfg)
 
-    print("\nYou can now run:  python loop.py\n")
+    print("\nYou can now run:  python3 /opt/stb-loop/loop.py\n")
 
 
 # ---------------------------------------------------------------------------
