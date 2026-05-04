@@ -275,7 +275,7 @@ def adb_open_app(cfg: dict) -> bool:
         result = adb("-s", target, "shell", "pidof", pkg)
 
     if result.returncode == 0 and result.stdout.strip():
-        log.info("App '%s' already running (PID %s).", pkg, result.stdout.strip())
+        log.debug("App '%s' already running (PID %s).", pkg, result.stdout.strip())
         return True
 
     # Launch the app
@@ -372,6 +372,9 @@ def channel_loop(cfg: dict, loop_time: int):
                 # Re-launch app in case the STB was restarted
                 time.sleep(1)
                 adb_open_app(cfg)
+
+            # Ensure app is running before zapping
+            adb_open_app(cfg)
 
             ok = adb_send_keycode(cfg, keycode)
             zap_count += 1
