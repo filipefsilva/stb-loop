@@ -122,7 +122,41 @@ def wizard():
     else:
         target_desc = "USB (cable)"
         print("\nUSB mode: the STB will be auto-detected.")
-        print("Make sure the USB cable is connected and USB Debugging is enabled.")
+        print("Make sure the USB cable is connected and USB Debugging is enabled.\n")
+
+        # Diagnose USB connection
+        result = adb("devices")
+        lines = [l.strip() for l in result.stdout.strip().split("\n") if l.strip()]
+        # First line is "List of devices attached"
+        devices = [l for l in lines if l and not l.startswith("List")]
+        authorized = [l for l in devices if l.endswith("\tdevice")]
+        unauthorized = [l for l in devices if l.endswith("\tunauthorized")]
+
+        if authorized:
+            print(f"✅ Found {len(authorized)} device(s):")
+            for d in authorized:
+                print(f"   {d}")
+        elif unauthorized:
+            print(f"⚠️  Device found but NOT authorized:")
+            for d in unauthorized:
+                print(f"   {d}")
+            print("   👉 Accept the USB Debugging prompt on the Android TV screen!")
+        else:
+            print("❌ No ADB device found over USB.")
+            print()
+            print("   Troubleshooting:")
+            print("   1. Is a data-capable USB cable connected?")
+            print("   2. Is USB Debugging enabled on the Android TV?")
+            print("   3. On Pi Zero (2) W: does config.txt have 'dtoverlay=dwc2'?")
+            print("      Run:  grep dwc2 /boot/firmware/config.txt")
+            print("      If missing, run setup.sh (sudo ./setup.sh) to auto-configure it.")
+            print()
+            print("   ⚠️  If dwc2 was just added, a REBOOT is required.")
+            print()
+            ok = input("   Continue anyway? [y/N]: ").strip().lower()
+            if ok != "y":
+                print("Setup cancelled. Fix the USB connection and try again.")
+                sys.exit(1)
 
     save_config(cfg)
     print(f"\nConfiguration saved: mode={mode} | {target_desc}")

@@ -50,6 +50,59 @@ log "Target    : ${APP_DIR}"
 log "Looptime  : ${LOOPTIME}s"
 
 # ---------------------------------------------------------------------------
+# 0. USB OTG overlay for Pi Zero (2) W
+# ---------------------------------------------------------------------------
+
+NEEDS_REBOOT=false
+
+ensure_dwc2_overlay() {
+    local model
+    model=$(tr -d '\0' < /proc/device-tree/model 2>/dev/null || true)
+
+    # Only needed on Pi Zero / Zero 2 W (BCM2835 / BCM2710A1)
+    case "$model" in
+        "Raspberry Pi Zero"*"W"*|"Raspberry Pi Zero 2"*)
+            ;;
+        *)
+            log "USB OTG overlay not needed on this model ($model)."
+            return
+            ;;
+    esac
+
+    # Find the right config.txt location
+    local config_file
+    if [ -f /boot/firmware/config.txt ]; then
+        config_file=/boot/firmware/config.txt
+    elif [ -f /boot/config.txt ]; then
+        config_file=/boot/config.txt
+    else
+        warn "Cannot find config.txt — USB OTG may not work."
+        return
+    fi
+
+    # Already configured?
+    if grep -qE '^\s*dtoverlay\s*=\s*dwc2' "$config_file" 2>/dev/null; then
+        log "dwc2 overlay already present in config.txt."
+        return
+    fi
+
+    warn "Pi Zero (2) W detected — adding dwc2 USB OTG overlay..."
+    warn "A REBOOT will be needed after this installation."
+
+    # Add to the [all] section, or at the end of the file
+    if grep -q '^\[all\]' "$config_file"; then
+        sed -i '/^\[all\]/a dtoverlay=dwc2,dr_mode=host' "$config_file"
+    else
+        echo -e "\n[all]\ndtoverlay=dwc2,dr_mode=host" >> "$config_file"
+    fi
+
+    log "dwc2 overlay added to $config_file"
+    NEEDS_REBOOT=true
+}
+
+ensure_dwc2_overlay
+
+# ---------------------------------------------------------------------------
 # 1. Create system user
 # ---------------------------------------------------------------------------
 
@@ -188,4 +241,17 @@ echo "  Stop:             sudo systemctl stop ${SERVICE_NAME}"
 echo "  Uninstall:        sudo systemctl disable --now ${SERVICE_NAME}"
 echo ""
 echo "  Current looptime: ${LOOPTIME}s  (change with: LOOPTIME=30 sudo ./setup.sh)"
+echo ""
+
+if [ "$NEEDS_REBOOT" = true ]; then
+    warn "============================================"
+    warn " USB OTG overlay was added to config.txt."
+    warn " REBOOT REQUIRED before ADB over USB will work:"
+    warn ""
+    warn "   sudo reboot"
+    warn ""
+    warn " After reboot, run:  python3 ${APP_DIR}/loop.py --stb"
+    warn "============================================"
+fi
+
 echo ""
