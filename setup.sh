@@ -151,23 +151,47 @@ fi
 log "Looptime set to: ${LOOPTIME}s"
 echo ""
 
-# App package
+# App package (required — without it the loop has nothing to launch)
 APP_PACKAGE=""
 APP_ACTIVITY=""
-echo "Auto-launch app on startup (optional, recommended):"
-echo "  This ensures the IPTV app is always in foreground."
-read -r -p "  Package name (e.g. tv.perception.android.tvcabostp) [skip]: " APP_PACKAGE
-APP_PACKAGE="${APP_PACKAGE:-}"
-if [ -n "$APP_PACKAGE" ]; then
-    read -r -p "  Activity name (e.g. tv.perception.android.waterloo.WaterlooActivity) [skip]: " APP_ACTIVITY
+echo "App to launch before each channel change (required):"
+echo "  This ensures the IPTV app is in foreground for zapping."
+while [ -z "$APP_PACKAGE" ]; do
+    read -r -p "  Package name: " APP_PACKAGE
+    APP_PACKAGE="${APP_PACKAGE:-}"
+    if [ -z "$APP_PACKAGE" ]; then
+        echo ""
+        warn "No package name provided."
+        warn "Without an app to launch, the loop cannot work properly."
+        read -r -p "  Abort installation? [Y/n]: " ABORT
+        ABORT="${ABORT:-y}"
+        if [[ "$ABORT" =~ ^[Yy] ]]; then
+            echo ""
+            log "Installation aborted by user."
+            exit 0
+        fi
+        echo ""
+    fi
+done
+
+# Activity name
+while [ -z "$APP_ACTIVITY" ]; do
+    read -r -p "  Activity name: " APP_ACTIVITY
     APP_ACTIVITY="${APP_ACTIVITY:-}"
     if [ -z "$APP_ACTIVITY" ]; then
-        warn "No activity provided — app auto-launch will use package only (may not work on all devices)."
+        echo ""
+        warn "No activity provided — app auto-launch may not work."
+        read -r -p "  Continue without activity? [y/N]: " NOACT
+        NOACT="${NOACT:-n}"
+        if [[ "$NOACT" =~ ^[Yy] ]]; then
+            warn "Proceeding without activity. App launch may fail."
+            break
+        fi
+        echo ""
     fi
-    log "App configured: ${APP_PACKAGE}${APP_ACTIVITY:+ / $APP_ACTIVITY}"
-else
-    log "No app configured. Only channel zapping will be performed."
-fi
+done
+
+log "App configured: ${APP_PACKAGE}${APP_ACTIVITY:+ / $APP_ACTIVITY}"
 echo ""
 
 # Write config.json early so it's available to the service
