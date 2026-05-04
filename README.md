@@ -1,14 +1,40 @@
 # IPTV Channel Loop
 
-Python script for Raspberry Pi that continuously cycles through channels on an
+A lightweight Python script that continuously cycles through channels on an
 Android TV device via ADB over USB. Works with any IPTV app where
 `KEYCODE_CHANNEL_UP` / `KEYCODE_CHANNEL_DOWN` changes the channel.
 
 ---
 
+## Supported Hardware
+
+### Raspberry Pi
+
+| Model | Supported | Notes |
+|---|---|---|
+| Pi Zero 2 W | ✅ | Requires `dwc2` USB OTG overlay (setup.sh handles this) |
+| Pi 3 (A+/B/B+) | ✅ | |
+| Pi 4 / Pi 5 | ✅ | |
+| Pi Zero (original) | ❌ | ARMv6 — `adb` crashes on this architecture |
+
+### Other Linux Machines
+
+Any Linux system with:
+
+- **Architecture:** x86_64 or aarch64 (ARMv8)
+- **RAM:** 256 MB minimum
+- **Disk:** 50 MB free
+- **USB:** at least one USB host port
+- **OS:** any distribution with systemd (Debian, Ubuntu, Fedora, Arch, etc.)
+
+The script is extremely lightweight — it only runs `adb shell input keyevent`
+once per interval. CPU and memory usage are negligible.
+
+---
+
 ## Requirements
 
-- Raspberry Pi (any model; Pi Zero / Zero 2 W needs an extra reboot for USB OTG)
+- A supported Linux machine (see above)
 - Android TV device with USB debugging enabled
 - Data-capable USB cable (not charge-only)
 
@@ -33,8 +59,8 @@ The installer asks for:
 It then installs dependencies, creates a systemd service, and guides you
 through ADB authorization on the TV.
 
-**Pi Zero / Zero 2 W:** the installer adds the `dwc2` USB OTG overlay and will
-tell you to reboot.
+On Pi Zero 2 W the installer adds the `dwc2` USB OTG overlay and will tell
+you to reboot.
 
 ---
 
@@ -57,7 +83,7 @@ sudo systemctl restart stb-loop.service   # restart
 
 1. Settings → About → tap **Build number** 7 times
 2. Settings → Developer options → enable **USB debugging**
-3. Connect the USB cable to the Pi
+3. Connect the USB cable to the Linux machine
 
 ---
 
@@ -77,9 +103,9 @@ If the popup doesn't appear:
 
 **Device not detected:**
 - Cable must be data-capable (not charge-only)
-- Pi Zero / Zero 2 W: use the inner USB port ("USB"), not "PWR"
+- Pi Zero 2 W: use the inner USB port ("USB"), not "PWR"
 - USB debugging must be enabled on the TV
-- Pi Zero / Zero 2 W: `dwc2` overlay required — run `sudo ./setup.sh`
+- Pi Zero 2 W: `dwc2` overlay required — run `sudo ./setup.sh`
 
 **Device shows `unauthorized`:**
 → Revoke authorizations on TV, replug cable, run the `adb devices` command above.
@@ -88,7 +114,7 @@ If the popup doesn't appear:
 → `journalctl -u stb-loop.service -f`
 
 **App doesn't launch:**
-→ Make sure the activity name is correct in `/opt/stb-loop/config.json`, then `sudo systemctl restart stb-loop.service`.
+→ Verify the activity name in `/opt/stb-loop/config.json`, then `sudo systemctl restart stb-loop.service`.
 
 ---
 
