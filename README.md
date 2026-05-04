@@ -40,7 +40,7 @@ sudo python3 /opt/stb-loop/loop.py --stb
 
 The `stb-loop.service` is active and starts automatically on every boot.
 
-Use `LOOPTIME=30 sudo ./setup.sh` to change the zap interval (default: 10s).
+Use `LOOPTIME=30 sudo ./setup.sh` to change the zap interval (default: 20s).
 
 ---
 
@@ -190,7 +190,7 @@ Wants=network-online.target
 Type=simple
 User=stb-loop
 WorkingDirectory=/opt/stb-loop
-ExecStart=/usr/bin/python3 /opt/stb-loop/loop.py --looptime 10
+ExecStart=/usr/bin/python3 /opt/stb-loop/loop.py --looptime 20
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

@@ -19,7 +19,7 @@ APP_USER="stb-loop"
 APP_DIR="/opt/stb-loop"
 SERVICE_NAME="stb-loop.service"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}"
-LOOPTIME="${LOOPTIME:-10}"
+LOOPTIME="${LOOPTIME:-20}"
 
 # Colors
 RED='\033[0;31m'
