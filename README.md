@@ -82,7 +82,16 @@ When you first connect the Android TV via USB, the TV will show a
 2. **Second time:** when `adb server` starts on the Pi and generates its RSA key
 
 Check **"Always allow from this computer"** and tap **Allow** on both prompts.
-After that, the authorization is permanent.
+
+The systemd service runs as a dedicated `stb-loop` user with its own ADB key.
+After installation, authorize it once:
+
+```bash
+sudo -u stb-loop HOME=/opt/stb-loop adb devices
+# Accept the popup on the TV — check "Always allow"
+```
+
+After that, the authorization is permanent for all three users (root, fsilva, stb-loop).
 
 ### Auto-Launch App
 

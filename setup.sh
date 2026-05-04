@@ -174,6 +174,17 @@ log "Python dependencies OK."
 
 log "5/5 Configuring systemd service ..."
 
+# Create shared ADB key for the stb-loop user
+ADB_DIR="${APP_DIR}/.android"
+mkdir -p "${ADB_DIR}"
+if [ ! -f "${ADB_DIR}/adbkey" ]; then
+    HOME="${APP_DIR}" adb keygen "${ADB_DIR}/adbkey" 2>/dev/null || true
+    log "ADB key generated for user '${APP_USER}'."
+fi
+chown -R "${APP_USER}:${APP_USER}" "${ADB_DIR}"
+chmod 700 "${ADB_DIR}"
+chmod 600 "${ADB_DIR}"/adbkey* 2>/dev/null || true
+
 cat > "${SERVICE_FILE}" << SYSTEMD
 [Unit]
 Description=STB Channel Loop — NOC Display
@@ -184,6 +195,8 @@ Wants=network-online.target
 Type=simple
 User=${APP_USER}
 WorkingDirectory=${APP_DIR}
+Environment=HOME=${APP_DIR}
+Environment=ADB_VENDOR_KEYS=${ADB_DIR}
 ExecStart=/usr/bin/python3 ${APP_DIR}/loop.py --looptime ${LOOPTIME}
 Restart=on-failure
 RestartSec=10
@@ -235,17 +248,6 @@ log "============================================"
 log " Installation complete!"
 log "============================================"
 echo ""
-echo "  Useful commands:"
-echo "  ─────────────────────────────────────────"
-echo "  Configure STB:    python3 ${APP_DIR}/loop.py --stb"
-echo "  Service status:   sudo systemctl status ${SERVICE_NAME}"
-echo "  Live logs:        journalctl -u ${SERVICE_NAME} -f"
-echo "  Restart:          sudo systemctl restart ${SERVICE_NAME}"
-echo "  Stop:             sudo systemctl stop ${SERVICE_NAME}"
-echo "  Uninstall:        sudo systemctl disable --now ${SERVICE_NAME}"
-echo ""
-echo "  Current looptime: ${LOOPTIME}s  (change with: LOOPTIME=30 sudo ./setup.sh)"
-echo ""
 
 if [ "$NEEDS_REBOOT" = true ]; then
     warn "============================================"
@@ -254,8 +256,25 @@ if [ "$NEEDS_REBOOT" = true ]; then
     warn ""
     warn "   sudo reboot"
     warn ""
-    warn " After reboot, run:  python3 ${APP_DIR}/loop.py --stb"
+    warn " After reboot, continue with the steps below:"
     warn "============================================"
+    echo ""
 fi
 
+echo "  Next steps:"
+echo "  ─────────────────────────────────────────"
+echo "  1. Authorize the service user for USB debugging:"
+echo "     sudo -u ${APP_USER} HOME=${APP_DIR} adb devices"
+echo "     (then accept the popup on the Android TV)"
+echo ""
+echo "  2. Configure the STB:"
+echo "     sudo python3 ${APP_DIR}/loop.py --stb"
+echo ""
+echo "  Useful commands:"
+echo "  ─────────────────────────────────────────"
+echo "  Service status:   sudo systemctl status ${SERVICE_NAME}"
+echo "  Live logs:        journalctl -u ${SERVICE_NAME} -f"
+echo "  Restart:          sudo systemctl restart ${SERVICE_NAME}"
+echo "  Stop:             sudo systemctl stop ${SERVICE_NAME}"
+echo "  Looptime:         ${LOOPTIME}s  (change: LOOPTIME=30 sudo ./setup.sh)"
 echo ""
