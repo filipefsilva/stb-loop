@@ -25,7 +25,7 @@ Any Linux system with:
 - **RAM:** 256 MB minimum
 - **Disk:** 50 MB free
 - **USB:** at least one USB host port
-- **OS:** any distribution with systemd (Debian, Ubuntu, Fedora, Arch, etc.)
+- **OS:** Debian-based (Debian, Ubuntu, Raspberry Pi OS); the installer uses `apt`
 
 The script is extremely lightweight — it only runs `adb shell input keyevent`
 once per interval. CPU and memory usage are negligible.
