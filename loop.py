@@ -329,16 +329,14 @@ def channel_loop(cfg: dict, loop_time: int):
              target_desc, mode, loop_time)
     log.info("Press CTRL+C to stop.")
 
-    # Initial connection (USB mode is immediate)
+    # Initial connection — wait forever, retry with backoff
     attempts = 0
+    delay = RETRY_DELAY
     while not adb_connect(cfg):
         attempts += 1
-        if attempts >= MAX_RETRIES:
-            log.error("Connection failed after %d attempts. Exiting.", MAX_RETRIES)
-            sys.exit(1)
-        log.warning("Connection failed (attempt %d/%d). Retrying in %ds...",
-                    attempts, MAX_RETRIES, RETRY_DELAY)
-        time.sleep(RETRY_DELAY)
+        log.warning("Waiting for STB (attempt %d). Retrying in %ds...", attempts, delay)
+        time.sleep(delay)
+        delay = min(delay * 2, 60)  # exponential backoff, cap at 60s
 
     # Launch app if configured
     time.sleep(2)  # give the device a moment after connection
@@ -356,9 +354,10 @@ def channel_loop(cfg: dict, loop_time: int):
 
                 connected = False
                 attempts = 0
+                delay = reconnect_delay
                 while not connected:
                     attempts += 1
-                    if attempts > reconnect_max_retries:
+                    if reconnect_max_retries > 0 and attempts > reconnect_max_retries:
                         log.error("Reconnection failed after %d attempts. Exiting.",
                                   reconnect_max_retries)
                         sys.exit(1)
@@ -366,7 +365,8 @@ def channel_loop(cfg: dict, loop_time: int):
                                 attempts, reconnect_max_retries)
                     connected = adb_reconnect(cfg)
                     if not connected:
-                        time.sleep(reconnect_delay)
+                        time.sleep(delay)
+                        delay = min(delay * 2, 30)  # backoff, cap at 30s
 
                 log.info("Reconnected successfully.")
                 # Re-launch app in case the STB was restarted
