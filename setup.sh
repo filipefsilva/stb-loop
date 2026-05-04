@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
-# setup.sh — Full installation of STB Channel Loop
+# setup.sh — STB Channel Loop installer & updater
 #
 # Usage:
-#   chmod +x setup.sh
-#   sudo ./setup.sh
+#   sudo ./setup.sh              # Full interactive installation
+#   sudo ./setup.sh --update     # Update code only (non-interactive)
+#   sudo ./setup.sh --help       # Show this help
 #
-# The script:
+# Full install steps:
 #   0. Configures dwc2 USB OTG overlay on Pi Zero (2) W
 #   1. Creates system user 'stb-loop'
 #   2. Installs OS dependencies (adb, python3, pip)
@@ -37,7 +38,7 @@ err()  { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 ask()  { echo -e "${CYAN}[?]${NC} $*"; }
 
 # ---------------------------------------------------------------------------
-# Initial checks
+# Initial checks & argument parsing
 # ---------------------------------------------------------------------------
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -47,6 +48,75 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ ! -f "${SCRIPT_DIR}/loop.py" ]; then
     err "loop.py not found in ${SCRIPT_DIR}. Run the script from the project folder."
+fi
+
+MODE="${1:-install}"
+
+if [ "$MODE" = "--help" ] || [ "$MODE" = "-h" ]; then
+    echo ""
+    echo "STB Channel Loop — setup.sh"
+    echo ""
+    echo "Usage:"
+    echo "  sudo ./setup.sh              Full interactive installation"
+    echo "  sudo ./setup.sh --update     Update code only (non-interactive)"
+    echo "  sudo ./setup.sh --help       Show this help"
+    echo ""
+    echo "Installation asks for:"
+    echo "  • Looptime (default 20s)      Seconds between channel changes"
+    echo "  • Package name (required)     Android app package to launch (e.g. tv.perception.android.tvcabostp)"
+    echo "  • Activity name               Activity to launch (e.g. tv.perception.android.waterloo.WaterlooActivity)"
+    echo "                                Can be skipped, but app launch may fail without it"
+    echo ""
+    echo "After installation:"
+    echo "  sudo systemctl status stb-loop.service    Check service status"
+    echo "  journalctl -u stb-loop.service -f         Live logs"
+    echo "  sudo ./setup.sh                           Reconfigure"
+    echo ""
+    exit 0
+fi
+
+if [ "$MODE" = "--update" ]; then
+    log "=== STB Channel Loop — Update ==="
+
+    if [ ! -d "${APP_DIR}" ]; then
+        err "${APP_DIR} not found. Run 'sudo ./setup.sh' first."
+    fi
+
+    log "1/3 Pulling latest code via git ..."
+    if git -C "${SCRIPT_DIR}" pull 2>/dev/null; then
+        log "Code updated."
+    else
+        warn "git pull failed — continuing with local files."
+    fi
+
+    log "2/3 Copying files to ${APP_DIR} ..."
+    cp "${SCRIPT_DIR}/loop.py" "${APP_DIR}/"
+    cp "${SCRIPT_DIR}/requirements.txt" "${APP_DIR}/" 2>/dev/null || true
+    chown "${APP_USER}:${APP_USER}" "${APP_DIR}/loop.py"
+
+    if [ -f "${APP_DIR}/requirements.txt" ]; then
+        deps=$( (grep -v '^\s*#' "${APP_DIR}/requirements.txt" || true) | (grep -v '^\s*$' || true) | wc -l)
+        if [ "${deps:-0}" -gt 0 ]; then
+            pip3 install -q -r "${APP_DIR}/requirements.txt" --break-system-packages || true
+        fi
+    fi
+    log "Files and dependencies updated."
+
+    log "3/3 Restarting service ..."
+    systemctl restart "${SERVICE_NAME}"
+    sleep 2
+
+    if systemctl is-active --quiet "${SERVICE_NAME}"; then
+        log "Service restarted successfully."
+    else
+        warn "Service may have failed to start. Check: journalctl -u ${SERVICE_NAME} -f"
+    fi
+
+    echo ""
+    systemctl status "${SERVICE_NAME}" --no-pager -l 2>/dev/null || true
+    echo ""
+    log "Update complete."
+    exit 0
 fi
 
 log "=== STB Channel Loop — Installation ==="
