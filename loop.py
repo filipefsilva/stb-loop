@@ -95,7 +95,14 @@ def wizard():
         print(f"⚠️  Device found but NOT authorized:")
         for d in unauthorized:
             print(f"   {d}")
-        print("   👉 Accept the USB Debugging prompt on the Android TV screen!")
+        print()
+        print("   👉 Accept the 'Allow USB debugging?' popup on the Android TV.")
+        print("   If the popup doesn't appear:")
+        print("     1. TV Settings → Developer Options → 'Revoke USB debugging authorizations'")
+        print("     2. Unplug and replug the USB cable")
+        print("     3. Re-run this wizard")
+        print()
+        sys.exit(1)
     else:
         print("❌ No ADB device found over USB.")
         print()
