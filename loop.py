@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-STB Channel Loop — NOC Display
-Continuous channel zapping via ADB over USB on an Android TV Box.
+IPTV Channel Loop
+Cycles through channels on an Android TV device via ADB over USB.
+Use with any IPTV app that responds to KEYCODE_CHANNEL_UP / KEYCODE_CHANNEL_DOWN.
 """
 
 import argparse
@@ -46,7 +47,7 @@ log = logging.getLogger(__name__)
 def load_config() -> dict:
     if not CONFIG_FILE.exists():
         log.error("Config file not found: %s", CONFIG_FILE)
-        log.error("Run first:  python loop.py --stb")
+        log.error("Run first:  sudo ./setup.sh")
         sys.exit(1)
     with open(CONFIG_FILE) as f:
         cfg = json.load(f)
@@ -61,88 +62,6 @@ def load_config() -> dict:
     cfg.setdefault("reconnect_retry_delay", RECONNECT_RETRY_DELAY)
 
     return cfg
-
-
-def save_config(cfg: dict):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(cfg, f, indent=2)
-    log.info("Configuration saved to %s", CONFIG_FILE)
-
-
-# ---------------------------------------------------------------------------
-# Interactive wizard
-# ---------------------------------------------------------------------------
-
-def wizard():
-    print("\n=== STB Channel Loop — Reconfigure ===\n")
-    print("USB mode: the STB will be auto-detected.")
-    print("(Run 'sudo ./setup.sh' for a full installation.)\n")
-
-    cfg = {}
-
-    # Diagnose USB connection
-    result = adb("devices")
-    lines = [l.strip() for l in result.stdout.strip().split("\n") if l.strip()]
-    devices = [l for l in lines if l and not l.startswith("List")]
-    authorized = [l for l in devices if l.endswith("\tdevice")]
-    unauthorized = [l for l in devices if l.endswith("\tunauthorized")]
-
-    if authorized:
-        print(f"✅ Found {len(authorized)} device(s):")
-        for d in authorized:
-            print(f"   {d}")
-    elif unauthorized:
-        print(f"⚠️  Device found but NOT authorized:")
-        for d in unauthorized:
-            print(f"   {d}")
-        print()
-        print("   👉 Accept the 'Allow USB debugging?' popup on the Android TV.")
-        print("   If the popup doesn't appear:")
-        print("     1. TV Settings → Developer Options → 'Revoke USB debugging authorizations'")
-        print("     2. Unplug and replug the USB cable")
-        print("     3. Re-run this wizard")
-        print()
-        sys.exit(1)
-    else:
-        print("❌ No ADB device found over USB.")
-        print()
-        print("   Troubleshooting:")
-        print("   1. Is a data-capable USB cable connected?")
-        print("   2. Is USB Debugging enabled on the Android TV?")
-        print("   3. On Pi Zero (2) W: does config.txt have 'dtoverlay=dwc2'?")
-        print("      Run:  grep dwc2 /boot/firmware/config.txt")
-        print("      If missing, run setup.sh (sudo ./setup.sh) to auto-configure it.")
-        print()
-        print("   ⚠️  If dwc2 was just added, a REBOOT is required.")
-        print()
-        ok = input("   Continue anyway? [y/N]: ").strip().lower()
-        if ok != "y":
-            print("Setup cancelled. Fix the USB connection and try again.")
-            sys.exit(1)
-
-    save_config(cfg)
-
-    # Optional: configure app to launch
-    print("\nAuto-launch app on startup (optional):")
-    pkg = input("  Package name (e.g. com.example.app) [skip]: ").strip()
-    if pkg:
-        cfg["app_package"] = pkg
-        act = input("  Activity name (e.g. .MainActivity) [skip]: ").strip()
-        if act:
-            cfg["app_activity"] = act
-        save_config(cfg)
-        print("App launch configured.")
-
-    # Optional: reconnect settings
-    print("\nReconnect settings:")
-    print("  1 — Enabled (default)")
-    print("  2 — Disabled")
-    rc = input("  Choice [1]: ").strip()
-    if rc == "2":
-        cfg["reconnect_on_fail"] = False
-        save_config(cfg)
-
-    print("\nYou can now run:  python3 /opt/stb-loop/loop.py\n")
 
 
 # ---------------------------------------------------------------------------
@@ -292,26 +211,17 @@ def main():
         sys.exit(1)
 
     parser = argparse.ArgumentParser(
-        description="STB Channel Loop — continuous channel cycling via ADB over USB"
+        description="IPTV Channel Loop — cycles through channels via ADB over USB"
     )
     parser.add_argument(
         "--looptime",
         type=int,
         default=DEFAULT_LOOP_TIME,
         metavar="N",
-        help=f"Seconds between zaps (default: {DEFAULT_LOOP_TIME})",
-    )
-    parser.add_argument(
-        "--stb",
-        action="store_true",
-        help="Launch the interactive wizard to configure the STB connection",
+        help=f"Seconds between channel changes (default: {DEFAULT_LOOP_TIME})",
     )
 
     args = parser.parse_args()
-
-    if args.stb:
-        wizard()
-        return
 
     cfg = load_config()
     channel_loop(cfg, args.looptime)

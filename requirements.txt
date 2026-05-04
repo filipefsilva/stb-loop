@@ -1,4 +1,3 @@
-# STB Channel Loop — dependências Python
-# O script atual usa apenas a biblioteca standard do Python 3.
-# Coloca aqui dependências adicionais se fores adicionar features.
-# Exemplo: requests, paho-mqtt, etc.
+# IPTV Channel Loop — Python dependencies
+# Currently uses only the Python 3 standard library.
+# Add extra dependencies here if needed (e.g. requests, paho-mqtt).

@@ -326,7 +326,7 @@ chmod 600 "${ADB_DIR}"/adbkey* 2>/dev/null || true
 # Create systemd service
 cat > "${SERVICE_FILE}" << SYSTEMD
 [Unit]
-Description=STB Channel Loop — NOC Display
+Description=STB Channel Loop
 After=network-online.target
 Wants=network-online.target
 
