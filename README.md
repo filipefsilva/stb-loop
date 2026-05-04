@@ -1,7 +1,8 @@
 # STB Channel Loop — NOC Display
 
-Python script for Raspberry Pi Zero W that continuously cycles through channels
-on an Android TV Box (STB) via ADB, for permanent display on a NOC screen.
+Python script for Raspberry Pi (Zero W, Zero 2 W, or any model) that
+continuously cycles through channels on an Android TV Box (STB) via ADB,
+for permanent display on a NOC screen.
 
 Supports two connection modes:
 - **TCP** — over the network (Wi-Fi/Ethernet)
@@ -11,10 +12,11 @@ Supports two connection modes:
 
 ## Requirements
 
-- Raspberry Pi Zero W running Raspberry Pi OS (Bookworm or Bullseye)
+- Raspberry Pi running Raspberry Pi OS (Bookworm or Bullseye)
 - Python 3 (included by default in Raspberry Pi OS)
 - ADB installed on the Pi
 - Android TV Box with ADB debugging enabled
+- **USB mode:** data-capable USB cable (not a charge-only cable)
 
 ---
 
@@ -27,6 +29,10 @@ cd stb-loop
 
 # Install everything (creates service user, installs deps, sets up systemd)
 sudo ./setup.sh
+
+# On Pi Zero / Zero 2 W: a REBOOT is required after setup.sh
+# (the script auto-configures the dwc2 USB OTG overlay)
+sudo reboot
 
 # Configure the STB
 sudo python3 /opt/stb-loop/loop.py --stb
@@ -77,11 +83,48 @@ The wizard first asks for the connection mode (TCP or USB), then prompts for the
 
 ```json
 {
-  "adb_mode": "usb"
+  "adb_mode": "usb",
+  "app_package": "tv.perception.android.tvcabostp",
+  "app_activity": "tv.perception.android.waterloo.WaterlooActivity",
+  "reconnect_on_fail": true,
+  "reconnect_max_retries": 3,
+  "reconnect_retry_delay": 1
 }
 ```
 
 The `config.json` file is created automatically under `/opt/stb-loop/`.
+
+#### USB Mode — First Connection & Authorization
+
+When you first connect the Android TV via USB, the TV will show a
+**"Allow USB debugging?"** popup. You may see this popup **twice**:
+
+1. **First time:** when the USB cable is physically connected
+2. **Second time:** when `adb server` starts on the Pi and generates its RSA key
+
+Check **"Always allow from this computer"** and tap **Allow** on both prompts.
+After that, the authorization is permanent.
+
+#### Auto-Launch App (optional)
+
+If `app_package` is configured, the script will:
+- Check if the app is already running (via `pidof`)
+- Launch it automatically via `am start` if it's not
+
+This is useful when the STB's IPTV app exits or the device restarts.
+
+#### Reconnect Settings
+
+| Field | Default | Description |
+|---|---|---|
+| `reconnect_on_fail` | `true` | Automatically attempt to reconnect if ADB drops |
+| `reconnect_max_retries` | `3` | Max reconnection attempts before giving up |
+| `reconnect_retry_delay` | `1` | Seconds between reconnection attempts |
+
+**USB mode:** the reconnect sequence does `adb kill-server` + `adb start-server`
+to force device re-enumeration.
+
+**TCP mode:** uses `adb disconnect` + `adb connect`.
 
 ---
 
@@ -211,19 +254,33 @@ stb-loop/
 **Script connects but the channel doesn't change**  
 → Make sure the STB is running a live TV app that supports `KEYCODE_CHANNEL_UP`. Some streaming apps ignore this keycode.
 
-**USB mode: device not detected**  
-→ Check the USB cable and confirm USB Debugging is enabled on the STB. Test with `adb devices` — a device entry without `:` in its name should appear.
+**USB mode: device not detected**
+→ Check the following:
 
-**USB mode: `adb: insufficient permissions`**  
-→ The `stb-loop` user needs access to the USB device. Create a udev rule:
+1. **Cable:** Must be a data-capable USB cable (not charge-only). Test with another cable.
+2. **Port:** On Pi Zero (2) W, use the inner micro-USB port (labeled "USB"), not the outer one ("PWR").
+3. **USB Debugging:** Must be enabled in Developer Options on the Android TV.
+4. **Pi Zero (2) W OTG overlay:** The `dwc2` kernel module must be loaded.
+   `setup.sh` auto-configures this, but a **reboot** is required afterward.
+   Verify with: `grep dwc2 /boot/firmware/config.txt | tail -1`
+5. **Udev rules:** If `adb devices` shows nothing but `lsusb` shows the device,
+   create a udev rule:
+   ```bash
+   echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666"' | sudo tee /etc/udev/rules.d/51-android.rules
+   sudo udevadm control --reload-rules
+   sudo udevadm trigger
+   ```
+   (Find your vendor ID with `lsusb` — common ones: `18d1` Google, `22b8` Motorola)
 
-```bash
-echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="<vendor>", MODE="0666"' | sudo tee /etc/udev/rules.d/51-android.rules
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-```
-
-(The vendor ID can be found with `lsusb`)
+**USB mode: device shows `unauthorized`**
+→ Accept the "Allow USB debugging?" popup on the Android TV screen.
+   Check "Always allow from this computer" to make it permanent.
+   If the popup doesn't appear: unplug/replug the USB cable, or restart ADB:
+   ```bash
+   adb kill-server
+   adb start-server
+   adb devices
+   ```
 
 **Service won't start**  
 → Check the logs: `journalctl -u stb-loop.service -f`. Make sure `config.json` exists in `/opt/stb-loop/`.
