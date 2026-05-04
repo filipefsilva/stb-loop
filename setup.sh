@@ -152,6 +152,8 @@ log "Looptime set to: ${LOOPTIME}s"
 echo ""
 
 # App package
+APP_PACKAGE=""
+APP_ACTIVITY=""
 echo "Auto-launch app on startup (optional, recommended):"
 echo "  This ensures the IPTV app is always in foreground."
 read -r -p "  Package name (e.g. tv.perception.android.tvcabostp) [skip]: " APP_PACKAGE
