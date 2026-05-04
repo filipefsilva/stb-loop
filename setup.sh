@@ -387,6 +387,9 @@ fi
 echo "  The service is running:  sudo systemctl status ${SERVICE_NAME}"
 echo "  Live logs:               journalctl -u ${SERVICE_NAME} -f"
 echo "  Looptime:                ${LOOPTIME}s"
+echo "  Package:                 ${APP_PACKAGE}${APP_ACTIVITY:+ / $APP_ACTIVITY}"
+echo ""
+echo "  To reconfigure later:    cd ${SCRIPT_DIR} && sudo ./setup.sh"
 echo ""
 
 if [ "$DEVICE_STATE" != "device" ]; then
