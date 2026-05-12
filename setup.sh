@@ -90,8 +90,13 @@ if [ "$MODE" = "--update" ]; then
     fi
 
     log "2/3 Copying files to ${APP_DIR} ..."
-    cp "${SCRIPT_DIR}/loop.py" "${APP_DIR}/"
-    cp "${SCRIPT_DIR}/requirements.txt" "${APP_DIR}/" 2>/dev/null || true
+    if [ "${SCRIPT_DIR}" != "${APP_DIR}" ]; then
+        cp "${SCRIPT_DIR}/loop.py" "${APP_DIR}/"
+        cp "${SCRIPT_DIR}/requirements.txt" "${APP_DIR}/" 2>/dev/null || true
+        log "Files copied."
+    else
+        log "Already in target directory — skipping copy."
+    fi
     chown "${APP_USER}:${APP_USER}" "${APP_DIR}/loop.py"
 
     if [ -f "${APP_DIR}/requirements.txt" ]; then
@@ -288,9 +293,13 @@ log "Configuration saved."
 
 log "4/7 Copying project files to ${APP_DIR} ..."
 
-cp "${SCRIPT_DIR}/loop.py" "${APP_DIR}/"
-cp "${SCRIPT_DIR}/requirements.txt" "${APP_DIR}/" 2>/dev/null || true
-log "Files copied."
+if [ "${SCRIPT_DIR}" != "${APP_DIR}" ]; then
+    cp "${SCRIPT_DIR}/loop.py" "${APP_DIR}/"
+    cp "${SCRIPT_DIR}/requirements.txt" "${APP_DIR}/" 2>/dev/null || true
+    log "Files copied."
+else
+    log "Already in target directory — skipping copy."
+fi
 
 # ---------------------------------------------------------------------------
 # 5. Install Python dependencies
