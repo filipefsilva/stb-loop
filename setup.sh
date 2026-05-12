@@ -83,10 +83,23 @@ if [ "$MODE" = "--update" ]; then
     fi
 
     log "1/3 Pulling latest code via git ..."
-    if git -C "${SCRIPT_DIR}" pull 2>/dev/null; then
-        log "Code updated."
+    if [ -d "${SCRIPT_DIR}/.git" ]; then
+        GIT_OWNER=$(stat -c '%U' "${SCRIPT_DIR}/.git" 2>/dev/null || echo "")
+        if [ -n "${GIT_OWNER}" ] && [ "${GIT_OWNER}" != "root" ]; then
+            if sudo -u "${GIT_OWNER}" git -C "${SCRIPT_DIR}" pull 2>/dev/null; then
+                log "Code updated (as ${GIT_OWNER})."
+            else
+                warn "git pull failed — continuing with local files."
+            fi
+        else
+            if git -C "${SCRIPT_DIR}" pull 2>/dev/null; then
+                log "Code updated."
+            else
+                warn "git pull failed — continuing with local files."
+            fi
+        fi
     else
-        warn "git pull failed — continuing with local files."
+        warn "Not a git repository — skipping pull."
     fi
 
     log "2/3 Copying files to ${APP_DIR} ..."

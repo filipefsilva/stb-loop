@@ -43,7 +43,12 @@ once per interval. CPU and memory usage are negligible.
 ## Install
 
 ```bash
+# SSH (recommended for developers)
+git clone git@github.com:filipefsilva/stb-loop.git
+
+# HTTPS (for fresh installs on a Pi)
 git clone https://github.com/filipefsilva/stb-loop.git
+
 cd stb-loop
 sudo ./setup.sh
 ```
