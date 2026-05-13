@@ -121,6 +121,13 @@ If the popup doesn't appear:
 **Device shows `unauthorized`:**
 → Revoke authorizations on TV, replug cable, run the `adb devices` command above.
 
+**Popup reappears after every reboot or USB replug:**
+→ Some Android TV firmware doesn't persist ADB authorizations across reboots.
+  Workaround: keep STB powered on with USB connected. Some devices persist
+  if you toggle USB debugging OFF then ON again after authorizing. If nothing
+  helps, the popup must be accepted manually each time — a limitation of the
+  STB firmware.
+
 **Service won't start:**
 → `journalctl -u stb-loop.service -f`
 
