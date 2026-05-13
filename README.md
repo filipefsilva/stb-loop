@@ -43,6 +43,9 @@ once per interval. CPU and memory usage are negligible.
 ## Install
 
 ```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git
+
 git clone https://github.com/filipefsilva/stb-loop.git
 cd stb-loop
 sudo ./setup.sh
