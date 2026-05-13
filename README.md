@@ -51,14 +51,6 @@ cd stb-loop
 sudo ./setup.sh
 ```
 
-The repo is public — HTTPS works without any authentication.
-
-If you'll be pushing changes, clone via SSH instead (requires an SSH key on GitHub):
-
-```bash
-git clone git@github.com:filipefsilva/stb-loop.git
-```
-
 The installer asks for:
 
 | Setting | Default | Notes |
